@@ -762,15 +762,39 @@
     // ── Активация карточки (снап + редирект) ──────────────────────────────────────
 
     function activateCard(card) {
-      locked = true; card.snapped = true;
+      locked = true;
+      card.snapped = true;
+
+      // --- ДОБАВЛЕНО: Затухание музыки ---
+      const music = document.getElementById('bg-music'); // Укажите ID вашего плеера
+      if (music) {
+        const fadeOutTime = 150; // Чуть меньше, чем задержка редиректа
+        const steps = 10;
+        const stepValue = music.volume / steps;
+        const interval = fadeOutTime / steps;
+
+        const fadeInterval = setInterval(() => {
+          if (music.volume > stepValue) {
+            music.volume -= stepValue;
+          } else {
+            music.volume = 0;
+            clearInterval(fadeInterval);
+          }
+        }, interval);
+      }
+      // ---------------------------------
+
       const body = card.body;
       const target = slotPos();
+
       Body.setVelocity(body, { x: 0, y: 0 });
       Body.setAngularVelocity(body, 0);
       Body.setStatic(body, true);
       Body.setPosition(body, target);
       Body.setAngle(body, 0);
+
       playSnap();
+
       setTimeout(() => redirect(card.url), 280);
     }
 
@@ -1302,6 +1326,12 @@
         bubbles: true,
       }));
     }, { passive: false });
+    window.addEventListener('pageshow', (event) => {
+      if (event.persisted) {
+        // Если страница восстановлена из bfcache, перезагружаем её
+        window.location.reload();
+      }
+    });
   </script>
 </body>
 
