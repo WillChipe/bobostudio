@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JAWBREAKER</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+    body {
+      background: #06060f;
+      min-height: 100vh;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      font-family: 'Rajdhani', sans-serif;
+      color: #fff;
+      overflow: hidden;
+      position: relative;
+    }
+    body::after {
+      content:''; position:fixed; inset:0;
+      background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.035) 3px, rgba(0,0,0,0.035) 4px);
+      pointer-events:none; z-index:900;
+    }
+
+    .orb { position:fixed; border-radius:50%; filter:blur(100px); opacity:0.1; pointer-events:none; animation:drift linear infinite; }
+    .orb1 { width:500px; height:500px; background:#b847ff; top:-100px;   left:-150px; animation-duration:22s; }
+    .orb2 { width:400px; height:400px; background:#00e5ff; bottom:-100px; right:-100px; animation-duration:18s; animation-direction:reverse; }
+    .orb3 { width:280px; height:280px; background:#ff3d6b; top:50%;       right:8%;   animation-duration:26s; }
+    @keyframes drift {
+      0%  { transform:translate(0,0) scale(1); }
+      33% { transform:translate(40px,-30px) scale(1.05); }
+      66% { transform:translate(-20px,20px) scale(0.97); }
+      100%{ transform:translate(0,0) scale(1); }
+    }
+
+    .game-wrapper {
+      display:flex; flex-direction:column; align-items:center; gap:13px;
+      position:relative; z-index:10;
+    }
+
+    .title {
+      font-family:'Orbitron',sans-serif; font-weight:900;
+      font-size:clamp(1.4rem,4vw,2.2rem); letter-spacing:0.3em;
+      background:linear-gradient(120deg,#ff3d6b 0%,#b847ff 50%,#00e5ff 100%);
+      -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+      filter:drop-shadow(0 0 14px rgba(184,71,255,0.5));
+      user-select:none;
+    }
+
+    .score-bar { display:flex; gap:28px; align-items:center; }
+    .score-item { text-align:center; }
+    .score-label { font-size:0.6rem; letter-spacing:0.35em; color:rgba(255,255,255,0.28); text-transform:uppercase; }
+    .score-value {
+      font-family:'Orbitron',sans-serif; font-size:1.6rem; font-weight:700;
+      color:#fff; line-height:1; transition:transform 0.15s,color 0.15s;
+      text-shadow:0 0 14px rgba(255,255,255,0.3);
+    }
+    .score-value.bump { transform:scale(1.18); color:#ffeb3b; text-shadow:0 0 20px rgba(255,235,59,0.8); }
+    .score-sep { width:1px; height:34px; background:rgba(255,255,255,0.08); }
+
+    .canvas-wrap {
+      position:relative; border-radius:14px; padding:3px;
+      background:linear-gradient(135deg,rgba(184,71,255,0.3),rgba(0,229,255,0.2),rgba(255,61,107,0.3));
+    }
+    .canvas-wrap::before {
+      content:''; position:absolute; inset:0; border-radius:14px;
+      background:linear-gradient(135deg,rgba(184,71,255,0.15),rgba(0,229,255,0.1));
+      z-index:-1; filter:blur(14px);
+    }
+    /* Canvas CSS size set by JS; image-rendering keeps it crisp */
+    #gameCanvas {
+      display:block; border-radius:12px; background:#080814; cursor:default;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+
+    .btn-row { display:flex; gap:10px; }
+    .btn {
+      font-family:'Orbitron',sans-serif; font-size:0.65rem; font-weight:700;
+      letter-spacing:0.18em; padding:10px 24px; border-radius:8px;
+      border:1px solid rgba(255,255,255,0.14); background:rgba(255,255,255,0.04);
+      color:rgba(255,255,255,0.75); cursor:pointer; text-transform:uppercase;
+      transition:all 0.2s; backdrop-filter:blur(6px);
+    }
+    .btn:hover { background:rgba(255,255,255,0.1); border-color:rgba(255,255,255,0.35); color:#fff; transform:translateY(-1px); }
+    .btn:active { transform:translateY(0); }
+
+    .settings-wrap { display:flex; flex-direction:column; align-items:center; gap:7px; }
+    .settings-label { font-size:0.58rem; letter-spacing:0.3em; color:rgba(255,255,255,0.22); text-transform:uppercase; }
+    .size-btns { display:flex; gap:7px; }
+    .size-btn {
+      font-family:'Orbitron',sans-serif; font-size:0.58rem; font-weight:700;
+      letter-spacing:0.1em; padding:7px 14px; border-radius:6px;
+      border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.03);
+      color:rgba(255,255,255,0.45); cursor:pointer; text-transform:uppercase;
+      transition:all 0.2s;
+    }
+    .size-btn:hover { background:rgba(255,255,255,0.08); color:rgba(255,255,255,0.8); border-color:rgba(255,255,255,0.25); }
+    .size-btn.active {
+      background:rgba(184,71,255,0.2); border-color:rgba(184,71,255,0.6);
+      color:#d090ff; box-shadow:0 0 12px rgba(184,71,255,0.25);
+    }
+
+    .hint { font-size:0.67rem; letter-spacing:0.07em; color:rgba(255,255,255,0.16); text-align:center; }
+
+    #overlay {
+      position:fixed; inset:0; display:flex; flex-direction:column;
+      align-items:center; justify-content:center; gap:20px;
+      z-index:500; opacity:0; pointer-events:none;
+      transition:opacity 0.4s; backdrop-filter:blur(0px);
+    }
+    #overlay.show { opacity:1; pointer-events:all; backdrop-filter:blur(8px); background:rgba(6,6,15,0.78); }
+    #overlay .over-title {
+      font-family:'Orbitron',sans-serif; font-size:clamp(2rem,6vw,3.2rem); font-weight:900;
+      letter-spacing:0.15em;
+      background:linear-gradient(90deg,#ff3d6b,#ff8a00);
+      -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+      animation:pulseGlow 2s ease-in-out infinite;
+    }
+    @keyframes pulseGlow {
+      0%,100% { filter:drop-shadow(0 0 18px rgba(255,61,107,0.5)); }
+      50%      { filter:drop-shadow(0 0 36px rgba(255,61,107,0.9)); }
+    }
+    #overlay .over-score { font-family:'Orbitron',sans-serif; font-size:1.1rem; color:rgba(255,255,255,0.5); letter-spacing:0.1em; }
+    #overlay .over-score span { color:#fff; font-weight:700; }
+  </style>
+</head>
+<body>
+
+<div class="orb orb1"></div>
+<div class="orb orb2"></div>
+<div class="orb orb3"></div>
+
+<div class="game-wrapper">
+  <div class="title">JAWBREAKER</div>
+
+  <div class="score-bar">
+    <div class="score-item">
+      <div class="score-label">Счёт</div>
+      <div class="score-value" id="scoreDisplay">0</div>
+    </div>
+    <div class="score-sep"></div>
+    <div class="score-item">
+      <div class="score-label">Рекорд</div>
+      <div class="score-value" id="bestDisplay">0</div>
+    </div>
+    <div class="score-sep"></div>
+    <div class="score-item">
+      <div class="score-label">Группа</div>
+      <div class="score-value" id="groupDisplay">—</div>
+    </div>
+  </div>
+
+  <div class="canvas-wrap">
+    <canvas id="gameCanvas"></canvas>
+  </div>
+
+  <div class="btn-row">
+    <button class="btn" id="newGameBtn">Новая игра</button>
+  </div>
+
+  <div class="settings-wrap">
+    <div class="settings-label">Размер поля</div>
+    <div class="size-btns" id="sizeBtns"></div>
+  </div>
+
+  <div class="hint">Кликни на группу из 2+ шариков · n² очков</div>
+</div>
+
+<div id="overlay">
+  <div class="over-title">GAME OVER</div>
+  <div class="over-score">Финальный счёт: <span id="finalScore">0</span></div>
+  <button class="btn" id="playAgainBtn">Играть снова</button>
+</div>
+
+<script>
+// ─── Palette ──────────────────────────────────────────────────────────────────
+const PALETTE = [
+  null,
+  { fill:'#FF3D5A', glow:'#FF1040', dark:'#4a0010', hi:'#ffbbcc', mid:'#cc1a38' },
+  { fill:'#00DCFF', glow:'#00A8D4', dark:'#002030', hi:'#99f0ff', mid:'#0099bb' },
+  { fill:'#72FF44', glow:'#50DD00', dark:'#163300', hi:'#ccff99', mid:'#44cc10' },
+  { fill:'#FFC020', glow:'#FF8800', dark:'#352000', hi:'#ffea99', mid:'#dd8800' },
+  { fill:'#C855FF', glow:'#9900EE', dark:'#260040', hi:'#eeaaff', mid:'#9930cc' },
+];
+
+// ─── Presets ──────────────────────────────────────────────────────────────────
+const PRESETS = [
+  { label:'Мини',     key:'mini',  cols:8,  rows:8  },
+  { label:'Стандарт', key:'std',   cols:12, rows:13, def:true },
+  { label:'Большое',  key:'large', cols:15, rows:15 },
+  { label:'Огромное', key:'xl',    cols:20, rows:18 },
+];
+const MAX_W = 530, MAX_H = 590;
+
+let COLS, ROWS, CELL, BALL_R;
+const DPR = window.devicePixelRatio || 1;
+
+// ─── Canvas ───────────────────────────────────────────────────────────────────
+const canvas = document.getElementById('gameCanvas');
+const ctx    = canvas.getContext('2d');
+
+function resizeCanvas(cssW, cssH) {
+  canvas.width        = Math.round(cssW * DPR);
+  canvas.height       = Math.round(cssH * DPR);
+  canvas.style.width  = cssW + 'px';
+  canvas.style.height = cssH + 'px';
+  ctx.setTransform(1,0,0,1,0,0);   // reset any previous scale
+  ctx.scale(DPR, DPR);             // draw in logical (CSS) pixels
+}
+
+// ─── Audio ────────────────────────────────────────────────────────────────────
+let audioCtx = null;
+
+function getAudio() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
+
+function playPop(count) {
+  try {
+    const ac  = getAudio();
+    const now = ac.currentTime;
+    const n   = Math.min(count, 30);
+
+    // Frequency rises with group size
+    const f0 = 220 + n * 18;
+    const f1 = f0 * (1.4 + n * 0.03);
+
+    const osc  = ac.createOscillator();
+    const gain = ac.createGain();
+    const filt = ac.createBiquadFilter();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(f0, now);
+    osc.frequency.exponentialRampToValueAtTime(f1, now + 0.08);
+
+    filt.type            = 'bandpass';
+    filt.frequency.value = f0 * 1.5;
+    filt.Q.value         = 1.2;
+
+    const vol = Math.min(0.35, 0.15 + n * 0.008);
+    gain.gain.setValueAtTime(vol, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+
+    osc.connect(filt);
+    filt.connect(gain);
+    gain.connect(ac.destination);
+
+    osc.start(now);
+    osc.stop(now + 0.2);
+
+    // A short "fizz" noise layer for bigger groups
+    if (n >= 4) {
+      const buf    = ac.createBuffer(1, ac.sampleRate * 0.12, ac.sampleRate);
+      const data   = buf.getChannelData(0);
+      for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1);
+      const ns     = ac.createBufferSource();
+      const nf     = ac.createBiquadFilter();
+      const ng     = ac.createGain();
+      ns.buffer    = buf;
+      nf.type      = 'bandpass';
+      nf.frequency.value = f0;
+      nf.Q.value   = 0.8;
+      ng.gain.setValueAtTime(vol * 0.35, now);
+      ng.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+      ns.connect(nf); nf.connect(ng); ng.connect(ac.destination);
+      ns.start(now);
+    }
+  } catch(e) { /* audio blocked */ }
+}
+
+// ─── State ────────────────────────────────────────────────────────────────────
+let grid = [], allBalls = [], particles = [];
+let score = 0, best = parseInt(localStorage.getItem('jw_best') || '0');
+let phase = 'IDLE', hoverGroup = [], displayScore = 0;
+
+// ─── Ball ─────────────────────────────────────────────────────────────────────
+class Ball {
+  constructor(col, row, color) {
+    this.col = col; this.row = row; this.color = color;
+    this.vx = col * CELL + CELL / 2;
+    this.vy = row * CELL + CELL / 2 - 18;
+    this.tx = col * CELL + CELL / 2;
+    this.ty = row * CELL + CELL / 2;
+    this.scale = 0.25; this.ts = 1;
+    this.alpha = 1; this.dying = false;
+  }
+  update(dt) {
+    const PK = 1 - Math.pow(0.001, dt * 8);
+    const SK = 1 - Math.pow(0.001, dt * 12);
+    this.vx += (this.tx - this.vx) * PK;
+    this.vy += (this.ty - this.vy) * PK;
+    this.scale += (this.ts - this.scale) * SK;
+    if (this.dying) { this.alpha -= dt * 7; if (this.alpha <= 0) return false; }
+    return true;
+  }
+  moveTo(col, row) {
+    this.col = col; this.row = row;
+    this.tx = col * CELL + CELL / 2;
+    this.ty = row * CELL + CELL / 2;
+  }
+  kill() { this.dying = true; this.ts = 0; }
+}
+
+// ─── Particle ─────────────────────────────────────────────────────────────────
+class Particle {
+  constructor(x, y, color) {
+    const a = Math.random() * Math.PI * 2, s = 60 + Math.random() * 160;
+    this.x = x; this.y = y;
+    this.vx = Math.cos(a) * s; this.vy = Math.sin(a) * s - 60;
+    this.color = color; this.life = 1;
+    this.size = 1.6 + Math.random() * 2.8;
+  }
+  update(dt) {
+    this.x += this.vx * dt; this.y += this.vy * dt;
+    this.vy += 320 * dt; this.life -= dt * 3;
+    return this.life > 0;
+  }
+}
+
+// ─── Grid ─────────────────────────────────────────────────────────────────────
+function initGrid() {
+  grid = []; allBalls = [];
+  for (let c = 0; c < COLS; c++) {
+    grid[c] = [];
+    for (let r = 0; r < ROWS; r++) {
+      const color = Math.floor(Math.random() * 5) + 1;
+      const b = new Ball(c, r, color);
+      grid[c][r] = b; allBalls.push(b);
+    }
+  }
+}
+
+function floodFill(col, row) {
+  const b = grid[col]?.[row]; if (!b) return [];
+  const color = b.color;
+  const visited = new Set(), result = [], stack = [[col, row]];
+  while (stack.length) {
+    const [c, r] = stack.pop();
+    const k = c * 300 + r;
+    if (visited.has(k)) continue;
+    if (c < 0 || c >= COLS || r < 0 || r >= ROWS) continue;
+    if (!grid[c][r] || grid[c][r].color !== color) continue;
+    visited.add(k); result.push([c, r]);
+    stack.push([c+1,r],[c-1,r],[c,r+1],[c,r-1]);
+  }
+  return result;
+}
+
+function applyGravity() {
+  for (let c = 0; c < COLS; c++) {
+    const alive = grid[c].filter(b => b !== null);
+    for (let r = 0; r < ROWS; r++) {
+      const gap = ROWS - alive.length;
+      grid[c][r] = r < gap ? null : alive[r - gap];
+      if (grid[c][r]) grid[c][r].moveTo(c, r);
+    }
+  }
+  const filled = grid.filter(col => col.some(b => b !== null));
+  const empty  = grid.filter(col => col.every(b => b === null));
+  grid = [...filled, ...empty];
+  for (let c = 0; c < COLS; c++)
+    for (let r = 0; r < ROWS; r++)
+      if (grid[c][r]) grid[c][r].moveTo(c, r);
+}
+
+function hasValidMoves() {
+  for (let c = 0; c < COLS; c++)
+    for (let r = 0; r < ROWS; r++)
+      if (grid[c][r] && floodFill(c, r).length >= 2) return true;
+  return false;
+}
+
+// ─── Actions ──────────────────────────────────────────────────────────────────
+function removeBalls(cells) {
+  const pts = cells.length * cells.length;
+  score += pts;
+  if (score > best) { best = score; localStorage.setItem('jw_best', best); }
+
+  playPop(cells.length);
+
+  for (const [c, r] of cells) {
+    const b = grid[c][r]; if (!b) continue;
+    const numP = Math.min(4 + Math.floor(cells.length / 3), 10);
+    for (let i = 0; i < numP; i++) particles.push(new Particle(b.vx, b.vy, b.color));
+    b.kill(); grid[c][r] = null;
+  }
+
+  bumpScore('scoreDisplay');
+  phase = 'ANIMATING'; hoverGroup = [];
+  canvas.style.cursor = 'default';
+  document.getElementById('groupDisplay').textContent = '—';
+
+  // ← faster: 150ms for death anim, then 220ms to settle
+  setTimeout(() => {
+    applyGravity();
+    setTimeout(() => {
+      phase = 'IDLE';
+      if (!hasValidMoves()) setTimeout(gameOver, 300);
+    }, 220);
+  }, 150);
+}
+
+function bumpScore(id) {
+  const el = document.getElementById(id);
+  el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump');
+  setTimeout(() => el.classList.remove('bump'), 250);
+}
+
+function gameOver() {
+  document.getElementById('finalScore').textContent = score.toLocaleString('ru-RU');
+  document.getElementById('overlay').classList.add('show');
+}
+
+function newGame() {
+  score = 0; displayScore = 0; particles = []; hoverGroup = []; phase = 'IDLE';
+  document.getElementById('groupDisplay').textContent = '—';
+  document.getElementById('overlay').classList.remove('show');
+  canvas.style.cursor = 'default';
+  initGrid();
+}
+
+// ─── Presets / size ───────────────────────────────────────────────────────────
+function applyPreset(key, startNew) {
+  const p = PRESETS.find(x => x.key === key); if (!p) return;
+  COLS = p.cols; ROWS = p.rows;
+  CELL = Math.max(22, Math.floor(Math.min(MAX_W / COLS, MAX_H / ROWS)));
+  BALL_R = Math.floor(CELL * 0.41);
+  resizeCanvas(COLS * CELL, ROWS * CELL);
+  document.querySelectorAll('.size-btn').forEach(btn =>
+    btn.classList.toggle('active', btn.dataset.key === key)
+  );
+  if (startNew) newGame();
+}
+
+const sizeBtnsEl = document.getElementById('sizeBtns');
+PRESETS.forEach(p => {
+  const btn = document.createElement('button');
+  btn.className = 'size-btn' + (p.def ? ' active' : '');
+  btn.dataset.key = p.key;
+  btn.textContent = p.label;
+  btn.title = `${p.cols} × ${p.rows}`;
+  btn.addEventListener('click', () => applyPreset(p.key, true));
+  sizeBtnsEl.appendChild(btn);
+});
+
+// ─── Input ────────────────────────────────────────────────────────────────────
+function getCell(clientX, clientY) {
+  const rect = canvas.getBoundingClientRect();
+  // rect size == CSS size, CELL is also in CSS pixels — no DPR needed here
+  return [
+    Math.floor((clientX - rect.left)  / CELL),
+    Math.floor((clientY - rect.top)   / CELL),
+  ];
+}
+
+canvas.addEventListener('mousemove', e => {
+  if (phase !== 'IDLE') { hoverGroup = []; return; }
+  const [col, row] = getCell(e.clientX, e.clientY);
+  if (col >= 0 && col < COLS && row >= 0 && row < ROWS && grid[col]?.[row]) {
+    hoverGroup = floodFill(col, row);
+    if (hoverGroup.length < 2) hoverGroup = [];
+  } else { hoverGroup = []; }
+  canvas.style.cursor = hoverGroup.length >= 2 ? 'pointer' : 'default';
+  document.getElementById('groupDisplay').textContent = hoverGroup.length >= 2 ? hoverGroup.length : '—';
+});
+
+canvas.addEventListener('mouseleave', () => {
+  hoverGroup = []; canvas.style.cursor = 'default';
+  document.getElementById('groupDisplay').textContent = '—';
+});
+
+canvas.addEventListener('click', e => {
+  if (phase !== 'IDLE') return;
+  const [col, row] = getCell(e.clientX, e.clientY);
+  if (col >= 0 && col < COLS && row >= 0 && row < ROWS && grid[col]?.[row]) {
+    const g = floodFill(col, row); if (g.length >= 2) removeBalls(g);
+  }
+});
+
+canvas.addEventListener('touchstart', e => {
+  e.preventDefault(); if (phase !== 'IDLE') return;
+  const t = e.touches[0];
+  const [col, row] = getCell(t.clientX, t.clientY);
+  if (col >= 0 && col < COLS && row >= 0 && row < ROWS && grid[col]?.[row]) {
+    const g = floodFill(col, row); if (g.length >= 2) removeBalls(g);
+  }
+}, { passive:false });
+
+document.getElementById('newGameBtn').addEventListener('click', newGame);
+document.getElementById('playAgainBtn').addEventListener('click', newGame);
+
+// ─── Drawing ──────────────────────────────────────────────────────────────────
+// All coords/sizes here are in CSS (logical) pixels — ctx is pre-scaled by DPR
+
+function drawBall(b, hov) {
+  const { vx: x, vy: y, scale, alpha, color } = b;
+  if (alpha <= 0 || scale <= 0.01) return;
+  const r = BALL_R * Math.max(0, scale);
+  const p = PALETTE[color];
+
+  ctx.save();
+  ctx.globalAlpha = Math.min(1, alpha);
+
+  // Glow halo — drawn as a manual radial gradient, zero ctx.shadowBlur
+  const gr  = r * (hov ? 1.75 : 1.4);
+  const glo = ctx.createRadialGradient(x, y, r * 0.5, x, y, gr);
+  glo.addColorStop(0, p.glow + (hov ? '40' : '22'));
+  glo.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.beginPath(); ctx.arc(x, y, gr, 0, Math.PI * 2);
+  ctx.fillStyle = glo; ctx.fill();
+
+  // Sphere body — sharp, no shadowBlur
+  const g = ctx.createRadialGradient(
+    x - r * 0.30, y - r * 0.32, r * 0.04,
+    x + r * 0.08, y + r * 0.08, r
+  );
+  g.addColorStop(0.00, p.hi);
+  g.addColorStop(0.18, p.fill);
+  g.addColorStop(0.62, p.mid);
+  g.addColorStop(1.00, p.dark);
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fillStyle = g; ctx.fill();
+
+  // Specular cap
+  const sh = ctx.createRadialGradient(
+    x - r * 0.28, y - r * 0.36, 0,
+    x - r * 0.10, y - r * 0.18, r * 0.52
+  );
+  sh.addColorStop(0.0, 'rgba(255,255,255,0.88)');
+  sh.addColorStop(0.4, 'rgba(255,255,255,0.20)');
+  sh.addColorStop(1.0, 'rgba(255,255,255,0)');
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fillStyle = sh; ctx.fill();
+
+  // Rim light
+  const rim = ctx.createRadialGradient(x + r*0.22, y + r*0.42, 0, x, y + r*0.5, r*0.6);
+  rim.addColorStop(0, p.hi + '26'); rim.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fillStyle = rim; ctx.fill();
+
+  // Hover ring
+  if (hov) {
+    ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+    ctx.lineWidth   = Math.max(0.8, r * 0.09);
+    ctx.globalAlpha = Math.min(1, alpha) * 0.7;
+    ctx.beginPath(); ctx.arc(x, y, r + 2.5, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+// ─── Render loop ──────────────────────────────────────────────────────────────
+let lastT = 0;
+
+function frame(t) {
+  const dt = Math.min((t - lastT) / 1000, 0.05);
+  lastT = t;
+
+  allBalls  = allBalls.filter(b => b.update(dt));
+  particles = particles.filter(p => p.update(dt));
+
+  displayScore += (score - displayScore) * (1 - Math.pow(0.001, dt * 6));
+  document.getElementById('scoreDisplay').textContent = Math.round(displayScore).toLocaleString('ru-RU');
+  document.getElementById('bestDisplay').textContent  = best.toLocaleString('ru-RU');
+
+  const hovSet = new Set(hoverGroup.map(([c, r]) => c * 300 + r));
+
+  // ctx draws in logical pixels (DPR already applied via ctx.scale)
+  ctx.clearRect(0, 0, COLS * CELL, ROWS * CELL);
+
+  // Grid dots
+  ctx.fillStyle = 'rgba(255,255,255,0.02)';
+  for (let c = 0; c < COLS; c++)
+    for (let r = 0; r < ROWS; r++) {
+      ctx.beginPath();
+      ctx.arc(c * CELL + CELL / 2, r * CELL + CELL / 2, 1.4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+  // Non-hovered first, hovered on top
+  const hovArr = [];
+  for (const b of allBalls) {
+    if (hovSet.has(b.col * 300 + b.row) && !b.dying) hovArr.push(b);
+    else drawBall(b, false);
+  }
+  for (const b of hovArr) drawBall(b, true);
+
+  // Particles
+  for (const p of particles) {
+    const pal = PALETTE[p.color];
+    ctx.save();
+    ctx.globalAlpha = p.life * 0.9;
+    ctx.fillStyle   = pal.fill;
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  requestAnimationFrame(frame);
+}
+
+// ─── Boot ─────────────────────────────────────────────────────────────────────
+applyPreset('std', false);
+newGame();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

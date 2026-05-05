@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Буквы</title>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;700;900&family=Martian+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --tile-bg: #1c1c2e;
+    --tile-border: #2e2e50;
+    --tile-glow: #5555ff;
+    --accent: #7b7bff;
+    --accent2: #ff6bba;
+    --text: #e8e8ff;
+    --muted: #555580;
+    --input-bg: #0e0e1a;
+  }
+
+  html, body {
+    width: 100%; height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Martian Mono', monospace;
+    overflow: hidden;
+  }
+
+  /* Subtle grid background */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(85,85,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(85,85,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Canvas area */
+  #canvas {
+    position: fixed;
+    inset: 0 0 110px 0;
+    z-index: 1;
+  }
+
+  /* Empty state hint */
+  #hint {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    pointer-events: none;
+    transition: opacity 0.4s ease;
+  }
+  #hint .hint-big {
+    font-family: 'Unbounded', sans-serif;
+    font-size: clamp(2rem, 6vw, 5rem);
+    font-weight: 900;
+    color: transparent;
+    -webkit-text-stroke: 1px var(--muted);
+    letter-spacing: 0.05em;
+    opacity: 0.3;
+  }
+  #hint .hint-small {
+    margin-top: 12px;
+    font-size: 0.7rem;
+    color: var(--muted);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+  }
+
+  /* Letter tiles */
+  .tile {
+    position: absolute;
+    width: 72px; height: 72px;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--tile-bg);
+    border: 1.5px solid var(--tile-border);
+    border-radius: 10px;
+    font-family: 'Unbounded', sans-serif;
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--text);
+    cursor: grab;
+    user-select: none;
+    transform-origin: center;
+    transition: box-shadow 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+    animation: popIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    box-shadow: 0 2px 20px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05);
+  }
+  .tile:hover {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent), 0 4px 30px rgba(85,85,255,0.25), inset 0 1px 0 rgba(255,255,255,0.08);
+  }
+  .tile.dragging {
+    cursor: grabbing;
+    border-color: var(--accent2);
+    box-shadow: 0 0 0 1px var(--accent2), 0 12px 50px rgba(255,107,186,0.3), inset 0 1px 0 rgba(255,255,255,0.1);
+    transform: scale(1.1) rotate(-2deg);
+    z-index: 1000 !important;
+  }
+  .tile .tile-letter {
+    background: linear-gradient(135deg, #fff 0%, var(--accent) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .tile .tile-index {
+    position: absolute;
+    bottom: 4px; right: 6px;
+    font-size: 0.45rem;
+    font-family: 'Martian Mono', monospace;
+    font-weight: 300;
+    color: var(--muted);
+    -webkit-text-fill-color: var(--muted);
+  }
+
+  @keyframes popIn {
+    from { opacity: 0; transform: scale(0.3) rotate(-10deg); }
+    to   { opacity: 1; transform: scale(1) rotate(0deg); }
+  }
+
+  /* Bottom input bar */
+  #bar {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: 110px;
+    background: linear-gradient(to top, #0a0a14 60%, transparent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 0 24px 20px;
+    z-index: 10;
+  }
+
+  #input-wrap {
+    position: relative;
+    flex: 1;
+    max-width: 480px;
+  }
+  #input-wrap::before {
+    content: '>';
+    position: absolute;
+    left: 16px; top: 50%;
+    transform: translateY(-50%);
+    color: var(--accent);
+    font-family: 'Martian Mono', monospace;
+    font-size: 0.9rem;
+    pointer-events: none;
+  }
+  #word-input {
+    width: 100%;
+    padding: 14px 16px 14px 36px;
+    background: var(--input-bg);
+    border: 1.5px solid var(--tile-border);
+    border-radius: 12px;
+    color: var(--text);
+    font-family: 'Unbounded', sans-serif;
+    font-size: 1rem;
+    font-weight: 400;
+    letter-spacing: 0.1em;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  #word-input::placeholder { color: var(--muted); letter-spacing: 0.1em; }
+  #word-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(85,85,255,0.15);
+  }
+
+  #go-btn {
+    padding: 14px 28px;
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+    border: none;
+    border-radius: 12px;
+    color: #fff;
+    font-family: 'Unbounded', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: opacity 0.15s, transform 0.15s;
+    white-space: nowrap;
+  }
+  #go-btn:hover { opacity: 0.85; }
+  #go-btn:active { transform: scale(0.96); }
+
+  #clear-btn {
+    padding: 14px 18px;
+    background: transparent;
+    border: 1.5px solid var(--tile-border);
+    border-radius: 12px;
+    color: var(--muted);
+    font-family: 'Martian Mono', monospace;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  #clear-btn:hover { border-color: var(--accent2); color: var(--accent2); }
+</style>
+</head>
+<body>
+
+<div id="canvas">
+  <div id="hint">
+    <div class="hint-big">СЛОВО</div>
+    <div class="hint-small">введите слово внизу и нажмите enter</div>
+  </div>
+</div>
+
+<div id="bar">
+  <div id="input-wrap">
+    <input id="word-input" type="text" placeholder="введите слово..." maxlength="30" autocomplete="off" spellcheck="false">
+  </div>
+  <button id="go-btn">Разбить</button>
+  <button id="clear-btn">✕ Очистить</button>
+</div>
+
+<script>
+  const canvas = document.getElementById('canvas');
+  const hint = document.getElementById('hint');
+  const input = document.getElementById('word-input');
+  const goBtn = document.getElementById('go-btn');
+  const clearBtn = document.getElementById('clear-btn');
+
+  let tiles = [];
+  let zCounter = 10;
+
+  function spawnTiles(word) {
+    if (!word.trim()) return;
+
+    const letters = word.toUpperCase().split('');
+    const canvasW = canvas.clientWidth;
+    const canvasH = canvas.clientHeight;
+    const tileSize = 72;
+    const gap = 16;
+    const totalW = letters.length * (tileSize + gap) - gap;
+    const startX = Math.max(20, (canvasW - totalW) / 2);
+    const startY = (canvasH - tileSize) / 2;
+
+    letters.forEach((letter, i) => {
+      const el = document.createElement('div');
+      el.className = 'tile';
+
+      // Slight random Y jitter
+      const jitter = (Math.random() - 0.5) * 40;
+      const x = startX + i * (tileSize + gap);
+      const y = Math.max(10, Math.min(canvasH - tileSize - 10, startY + jitter));
+
+      el.style.left = x + 'px';
+      el.style.top  = y + 'px';
+      el.style.zIndex = ++zCounter;
+      el.style.animationDelay = (i * 0.06) + 's';
+
+      el.innerHTML = `<span class="tile-letter">${letter === ' ' ? '&nbsp;' : letter}</span><span class="tile-index">${i + 1}</span>`;
+
+      makeDraggable(el);
+      canvas.appendChild(el);
+      tiles.push(el);
+    });
+
+    hint.style.opacity = '0';
+    input.value = '';
+  }
+
+  function clearAll() {
+    tiles.forEach(t => {
+      t.style.transition = 'opacity 0.2s, transform 0.2s';
+      t.style.opacity = '0';
+      t.style.transform = 'scale(0.5)';
+      setTimeout(() => t.remove(), 220);
+    });
+    tiles = [];
+    setTimeout(() => { hint.style.opacity = '1'; }, 300);
+  }
+
+  function makeDraggable(el) {
+    let startX, startY, origLeft, origTop;
+
+    el.addEventListener('mousedown', onDown);
+    el.addEventListener('touchstart', onTouchStart, { passive: false });
+
+    function onDown(e) {
+      e.preventDefault();
+      startX = e.clientX;
+      startY = e.clientY;
+      origLeft = parseInt(el.style.left);
+      origTop  = parseInt(el.style.top);
+      el.classList.add('dragging');
+      el.style.zIndex = ++zCounter;
+      window.addEventListener('mousemove', onMove);
+      window.addEventListener('mouseup', onUp);
+    }
+    function onMove(e) {
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      const newLeft = origLeft + dx;
+      const newTop  = origTop  + dy;
+      const maxL = canvas.clientWidth  - 72;
+      const maxT = canvas.clientHeight - 72;
+      el.style.left = Math.max(0, Math.min(maxL, newLeft)) + 'px';
+      el.style.top  = Math.max(0, Math.min(maxT, newTop))  + 'px';
+    }
+    function onUp() {
+      el.classList.remove('dragging');
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    }
+
+    function onTouchStart(e) {
+      e.preventDefault();
+      const t = e.touches[0];
+      startX = t.clientX;
+      startY = t.clientY;
+      origLeft = parseInt(el.style.left);
+      origTop  = parseInt(el.style.top);
+      el.classList.add('dragging');
+      el.style.zIndex = ++zCounter;
+      window.addEventListener('touchmove', onTouchMove, { passive: false });
+      window.addEventListener('touchend', onTouchEnd);
+    }
+    function onTouchMove(e) {
+      e.preventDefault();
+      const t = e.touches[0];
+      const dx = t.clientX - startX;
+      const dy = t.clientY - startY;
+      const newLeft = origLeft + dx;
+      const newTop  = origTop  + dy;
+      const maxL = canvas.clientWidth  - 72;
+      const maxT = canvas.clientHeight - 72;
+      el.style.left = Math.max(0, Math.min(maxL, newLeft)) + 'px';
+      el.style.top  = Math.max(0, Math.min(maxT, newTop))  + 'px';
+    }
+    function onTouchEnd() {
+      el.classList.remove('dragging');
+      window.removeEventListener('touchmove', onTouchMove);
+      window.removeEventListener('touchend', onTouchEnd);
+    }
+  }
+
+  goBtn.addEventListener('click', () => spawnTiles(input.value));
+  clearBtn.addEventListener('click', clearAll);
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') spawnTiles(input.value);
+  });
+</script>
+</body>
+</html>
