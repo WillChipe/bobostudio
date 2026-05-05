@@ -257,7 +257,7 @@
 </head>
 
 <body>
-  <audio id="bg-music" src="music/track.mp3" loop></audio>
+  <audio id="bg-music" src="music/vibes.mp3" loop></audio>
   <canvas id="c"></canvas>
   <div class="title">ВАЙБ-ЛОЖЕ</div>
   <div class="credit">Bobo studio 2026</div>
@@ -781,6 +781,17 @@
       document.getElementById('veil').classList.add('show');
       setTimeout(() => { location.href = url; }, 650);
     }
+
+    // Сброс завесы при возврате назад (bfcache восстанавливает страницу как есть)
+    window.addEventListener('pageshow', e => {
+      const veil = document.getElementById('veil');
+      veil.style.transition = 'none';
+      veil.classList.remove('show');
+      // Форсируем reflow чтобы transition не сработал при снятии класса
+      veil.offsetHeight;
+      veil.style.transition = '';
+      locked = false;
+    });
 
     // ── Audio ─────────────────────────────────────────────────────────────────────
 
