@@ -267,7 +267,10 @@
       opacity: 0.22;
       transition: opacity 0.35s ease;
     }
-    #vol-ctrl:hover { opacity: 0.82; }
+
+    #vol-ctrl:hover {
+      opacity: 0.82;
+    }
 
     #vol-icon {
       width: 16px;
@@ -283,12 +286,13 @@
       direction: rtl;
       width: 2px;
       height: 68px;
-      background: linear-gradient(to top, #ff71ce var(--pct, 10%), rgba(255,113,206,0.18) var(--pct, 10%));
+      background: linear-gradient(to top, #ff71ce var(--pct, 10%), rgba(255, 113, 206, 0.18) var(--pct, 10%));
       border: none;
       outline: none;
       cursor: pointer;
       border-radius: 2px;
     }
+
     #vol-slider::-webkit-slider-thumb {
       -webkit-appearance: none;
       appearance: none;
@@ -296,21 +300,23 @@
       height: 10px;
       border-radius: 50%;
       background: #ff71ce;
-      box-shadow: 0 0 6px rgba(255,113,206,0.9), 0 0 14px rgba(255,113,206,0.4);
+      box-shadow: 0 0 6px rgba(255, 113, 206, 0.9), 0 0 14px rgba(255, 113, 206, 0.4);
       cursor: pointer;
       transition: transform 0.15s ease, box-shadow 0.15s ease;
     }
+
     #vol-slider::-webkit-slider-thumb:hover {
       transform: scale(1.4);
-      box-shadow: 0 0 10px rgba(255,113,206,1), 0 0 22px rgba(255,113,206,0.6);
+      box-shadow: 0 0 10px rgba(255, 113, 206, 1), 0 0 22px rgba(255, 113, 206, 0.6);
     }
+
     #vol-slider::-moz-range-thumb {
       width: 10px;
       height: 10px;
       border-radius: 50%;
       background: #ff71ce;
       border: none;
-      box-shadow: 0 0 6px rgba(255,113,206,0.9);
+      box-shadow: 0 0 6px rgba(255, 113, 206, 0.9);
       cursor: pointer;
     }
   </style>
@@ -327,9 +333,11 @@
   <div id="vol-ctrl">
     <input id="vol-slider" type="range" min="0" max="100" value="10" step="1">
     <svg id="vol-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path id="vol-path" d="M11 5L6 9H2v6h4l5 4V5z" fill="rgba(255,113,206,0.9)"/>
-      <path id="vol-wave1" d="M15.54 8.46a5 5 0 0 1 0 7.07" stroke="rgba(255,113,206,0.9)" stroke-width="1.5" stroke-linecap="round"/>
-      <path id="vol-wave2" d="M19.07 4.93a10 10 0 0 1 0 14.14" stroke="rgba(255,113,206,0.6)" stroke-width="1.5" stroke-linecap="round"/>
+      <path id="vol-path" d="M11 5L6 9H2v6h4l5 4V5z" fill="rgba(255,113,206,0.9)" />
+      <path id="vol-wave1" d="M15.54 8.46a5 5 0 0 1 0 7.07" stroke="rgba(255,113,206,0.9)" stroke-width="1.5"
+        stroke-linecap="round" />
+      <path id="vol-wave2" d="M19.07 4.93a10 10 0 0 1 0 14.14" stroke="rgba(255,113,206,0.6)" stroke-width="1.5"
+        stroke-linecap="round" />
     </svg>
   </div>
 
@@ -522,7 +530,131 @@
         ctx.fillStyle = 'rgba(255,255,255,0.22)'; ctx.fill();
       });
     }
+    // ── Icon: Synth ──────────────────────────────────────────────────────────
+    function drawSynthIcon(ctx, S) {
 
+      const R = S * 0.1;           // corner radius (≈ iOS squircle feel)
+
+      // ── 1. Clip to rounded square ────────────────────────────────────────────
+      ctx.save();
+      ctx.beginPath();
+      ctx.roundRect(0, 0, S, S, R);
+      ctx.clip();
+
+      // ── 2. Background ────────────────────────────────────────────────────────
+      ctx.fillStyle = '#06061a';
+      ctx.fillRect(0, 0, S, S);
+
+      // Ambient glow blobs (mirrors the live site atmosphere)
+      const blobs = [
+        { x: S * 0.22, y: S * 0.28, r: S * 0.65, c: 'rgba(0,22,75,0.72)' },
+        { x: S * 0.80, y: S * 0.75, r: S * 0.58, c: 'rgba(80,0,58,0.55)' },
+      ];
+      blobs.forEach(b => {
+        const g = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, b.r);
+        g.addColorStop(0, b.c); g.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = g; ctx.fillRect(0, 0, S, S);
+      });
+
+      // ── 3. Waveform layers ───────────────────────────────────────────────────
+      const MY = S * 0.50;         // vertical centre
+      const X0 = S * 0.00;         // left edge of wave span
+      const WW = S * 1;         // wave span width
+      const HALF = S * 0.185;        // peak half-amplitude
+
+      const LAYERS = [
+        { col: '#00f5d4', cyc: 2.3, amp: 1.00, phi: 0.00, lw: S * 0.0308, gBlur: S * 0.124, gAlpha: 0.28 },
+        { col: '#f72585', cyc: 3.4, amp: 0.58, phi: Math.PI * 0.55, lw: S * 0.0335, gBlur: S * 0.018, gAlpha: 0.20 },
+        { col: '#7b2fff', cyc: 1.75, amp: 0.40, phi: Math.PI * 1.20, lw: S * 0.0326, gBlur: S * 0.014, gAlpha: 0.15 },
+      ];
+
+      function wavePath(L) {
+        ctx.beginPath();
+        for (let i = 0; i <= 600; i++) {
+          const t = i / 600;
+          const px = X0 + t * WW;
+          const env = Math.sin(t * Math.PI);          // soft taper at both ends
+          const py = MY + Math.sin(t * Math.PI * 2 * L.cyc + L.phi) * L.amp * HALF * env;
+          i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+        }
+      }
+
+      LAYERS.forEach(L => {
+        // Glow pass
+        ctx.save();
+        ctx.filter = `blur(${L.gBlur}px)`;
+        ctx.globalAlpha = L.gAlpha;
+        wavePath(L);
+        ctx.strokeStyle = L.col;
+        ctx.lineWidth = L.lw * 5;
+        ctx.lineJoin = 'round';
+        ctx.stroke();
+        ctx.restore();
+
+        // Crisp pass
+        ctx.save();
+        ctx.globalAlpha = 0.88;
+        wavePath(L);
+        ctx.strokeStyle = L.col;
+        ctx.lineWidth = L.lw;
+        ctx.lineJoin = 'round';
+        ctx.stroke();
+        ctx.restore();
+      });
+
+      // ── 4. Centre baseline ───────────────────────────────────────────────────
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(X0, MY); ctx.lineTo(X0 + WW, MY);
+      ctx.strokeStyle = 'rgba(255,255,255,0.035)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.restore();
+
+      // ── 5. Frequency indicator dots (mirrors live visualiser) ────────────────
+      const DOTS = [
+        { t: 0.28, col: '#00f5d4', r: S * 0.0075 },
+        { t: 0.52, col: '#f72585', r: S * 0.0058 },
+        { t: 0.69, col: '#7b2fff', r: S * 0.0046 },
+      ];
+      DOTS.forEach(d => {
+        const dx = X0 + d.t * WW;
+        // halo
+        ctx.save();
+        ctx.filter = `blur(${S * 0.012}px)`;
+        ctx.beginPath(); ctx.arc(dx, MY, d.r * 2.8, 0, Math.PI * 2);
+        ctx.fillStyle = d.col; ctx.globalAlpha = 0.38; ctx.fill();
+        ctx.restore();
+        // dot
+        ctx.beginPath(); ctx.arc(dx, MY, d.r, 0, Math.PI * 2);
+        ctx.fillStyle = d.col; ctx.globalAlpha = 0.9; ctx.fill();
+        ctx.globalAlpha = 1;
+      });
+
+      // ── 6. Horizontal edge vignette ──────────────────────────────────────────
+      // Overlay bg colour at edges so waveform fades out (opaque-bg-safe version
+      // of the destination-out approach used on the live site canvas)
+      const FW = WW * 0.10;
+
+      const gL = ctx.createLinearGradient(X0, 0, X0 + FW, 0);
+      gL.addColorStop(0, '#06060f'); gL.addColorStop(1, 'rgba(6,6,15,0)');
+      ctx.fillStyle = gL; ctx.fillRect(0, 0, X0 + FW, S);
+
+      const gR = ctx.createLinearGradient(X0 + WW - FW, 0, X0 + WW, 0);
+      gR.addColorStop(0, 'rgba(6,6,15,0)'); gR.addColorStop(1, '#06060f');
+      ctx.fillStyle = gR; ctx.fillRect(X0 + WW - FW, 0, S - (X0 + WW - FW), S);
+
+      // ── 7. Inner border ───────────────────────────────────────────────────────
+      ctx.save();
+      ctx.beginPath();
+      ctx.roundRect(0, 0, S, S, R);
+      ctx.strokeStyle = 'rgba(255,255,255,0.055)';
+      ctx.lineWidth = S * 0.005;
+      ctx.stroke();
+      ctx.restore();
+
+      ctx.restore(); // end rounded-rect clip
+    }
     // ── Icon: Jawbreaker ──────────────────────────────────────────────────────────
     function drawJawbreakerIcon(ctx, S) {
       // Фон
@@ -643,6 +775,7 @@
       { id: 'xiangqi', draw: drawXiangqiIcon },
       { id: 'jawbreaker', draw: drawJawbreakerIcon },
       { id: 'bukovki', draw: drawBukovkiIcon },
+      { id: 'synth', draw: drawSynthIcon },
     ];
 
     // Кэш отрендеренных иконок (рендерим один раз в offscreen canvas)
@@ -701,6 +834,12 @@
         label: 'BUKOVKI',
         icon: 'bukovki',
         url: 'letter-tiles.html',
+      },
+      {
+        hi: '#7B2FFF', lo: '#00F5D4',
+        label: 'SYNTH',
+        icon: 'synth',
+        url: 'synth_v5.html',
       },
     ];
 
