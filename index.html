@@ -768,6 +768,111 @@
       ctx.fillStyle = glowGrad;
       ctx.fillRect(0, 0, S, S);
     }
+    function drawBallsIcon(ctx, S) {
+  const bg = '#0c0c0c';
+  const consoleBlue = '#000080';
+  const btnGray = '#c0c0c0';
+  const btnRed = '#cc0000'; // Красный цвет закрытия окна как в стилях сайта
+
+  // 1. Фон
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, S, S);
+
+  // 2. Генерация 20 маленьких шариков
+  const count = 20;
+  const balls = [];
+  const barHeight = S * 0.16;
+  
+  // Базовый адаптивный радиус шарика
+  const r = S * 0.05; 
+
+  for (let i = 0; i < count; i++) {
+    balls.push({
+      x: S * 0.2 + Math.random() * (S * 0.6),
+      y: barHeight + r + Math.random() * (S - barHeight - r * 2),
+      hue: Math.floor(Math.random() * 360)
+    });
+  }
+
+  // Алгоритм расталкивания шаров
+  for (let step = 0; step < 3; step++) {
+    for (let i = 0; i < count; i++) {
+      for (let j = i + 1; j < count; j++) {
+        const dx = balls[j].x - balls[i].x;
+        const dy = balls[j].y - balls[i].y;
+        const dist = Math.hypot(dx, dy);
+        const minDist = r * 2.1;
+
+        if (dist < minDist) {
+          const overlap = minDist - dist;
+          const nx = (dx / (dist || 1)) * overlap * 0.5;
+          const ny = (dy / (dist || 1)) * overlap * 0.5;
+          
+          balls[j].x += nx;
+          balls[j].y += ny;
+          balls[i].x -= nx;
+          balls[i].y -= ny;
+        }
+      }
+      balls[i].x = Math.max(r, Math.min(S - r, balls[i].x));
+      balls[i].y = Math.max(barHeight + r, Math.min(S - r, balls[i].y));
+    }
+  }
+
+  // 3. Отрисовка ярких глянцевых шаров
+  balls.forEach(ball => {
+    const ballGrad = ctx.createRadialGradient(
+      ball.x - r * 0.3, ball.y - r * 0.3, 0,
+      ball.x, ball.y, r
+    );
+    ballGrad.addColorStop(0, `hsl(${ball.hue}, 88%, 82%)`);
+    ballGrad.addColorStop(0.45, `hsl(${ball.hue}, 88%, 56%)`);
+    ballGrad.addColorStop(1, `hsl(${ball.hue}, 88%, 20%)`);
+
+    ctx.beginPath();
+    ctx.arc(ball.x, ball.y, r, 0, Math.PI * 2);
+    ctx.fillStyle = ballGrad;
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(ball.x - r * 0.3, ball.y - r * 0.3, r * 0.25, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+    ctx.fill();
+  });
+
+  // 4. Синяя консольная полоска сверху
+  ctx.fillStyle = consoleBlue;
+  ctx.fillRect(0, 0, S, barHeight);
+
+  // 5. Три ретро-кнопки справа (две серых и одна красная)
+  const btnSize = S * 0.09;
+  const btnY = (barHeight - btnSize) / 2;
+  const btnGap = S * 0.03; // Отступ между кнопками
+
+  // Расчет координат X справа налево
+  const xClose = S - btnSize - S * 0.04;          // Красная (Закрыть)
+  const xMax = xClose - btnSize - btnGap;         // Серая (Развернуть)
+  const xMin = xMax - btnSize - btnGap;           // Серая (Свернуть)
+
+  // Отрисовка кнопок
+  ctx.fillStyle = btnGray;
+  ctx.fillRect(xMin, btnY, btnSize, btnSize);     // Свернуть
+  ctx.fillRect(xMax, btnY, btnSize, btnSize);     // Развернуть
+
+  ctx.fillStyle = btnRed;
+  ctx.fillRect(xClose, btnY, btnSize, btnSize);   // Закрыть
+   const vignetteGrad = ctx.createRadialGradient(
+    S / 2, (S + barHeight) / 2, 0,                      // Центр градиента (в середине зоны с шариками)
+    S / 2, (S + barHeight) / 2, Math.max(S / 2, S * 0.6) // Внешний радиус
+  );
+  vignetteGrad.addColorStop(0, 'rgba(0, 0, 128, 0)');     // В центре полностью прозрачно
+  vignetteGrad.addColorStop(1, 'rgba(0, 0, 128, 0.20)');   // По краям плавно переходит в синий #000080
+
+  ctx.fillStyle = vignetteGrad;
+  // Рисуем виньетку строго под консольной полоской
+  ctx.fillRect(0, barHeight, S, S - barHeight);
+}
+
 
     // ── Icon Registry ─────────────────────────────────────────────────────────────
     // Чтобы добавить иконку: { id: 'yourId', draw: yourDrawFunction }
@@ -776,6 +881,8 @@
       { id: 'jawbreaker', draw: drawJawbreakerIcon },
       { id: 'bukovki', draw: drawBukovkiIcon },
       { id: 'synth', draw: drawSynthIcon },
+      { id: 'balls', draw: drawBallsIcon },
+
     ];
 
     // Кэш отрендеренных иконок (рендерим один раз в offscreen canvas)
@@ -840,6 +947,12 @@
         label: 'SYNTH',
         icon: 'synth',
         url: 'synth_v5.html',
+      },
+      {
+        hi: '#000080', lo: '#0c0c0c',
+        label: 'SHARI',
+        icon: 'balls',
+        url: 'balls.html',
       },
     ];
 

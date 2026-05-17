@@ -1,0 +1,1570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>
+(() => {
+
+  // случайный hue
+  const hue = Math.floor(Math.random() * 360);
+
+  // saturation/lightness как у шариков сайта
+  const SAT = 88;
+  const LIT = 56;
+
+  const svg = `
+  <svg xmlns="http://www.w3.org/2000/svg"
+       viewBox="0 0 64 64">
+
+    <defs>
+
+      <!-- основной glossy gradient -->
+      <radialGradient id="base"
+        cx="35%" cy="30%">
+
+        <stop offset="0%"
+          stop-color="hsl(${hue}, ${SAT}%, 82%)"/>
+
+        <stop offset="45%"
+          stop-color="hsl(${hue}, ${SAT}%, ${LIT}%)"/>
+
+        <stop offset="100%"
+          stop-color="hsl(${hue}, ${SAT}%, 24%)"/>
+      </radialGradient>
+
+      <!-- rim light -->
+      <radialGradient id="rim"
+        cx="50%" cy="50%">
+
+        <stop offset="70%"
+          stop-color="white"
+          stop-opacity="0"/>
+
+        <stop offset="100%"
+          stop-color="white"
+          stop-opacity="0.16"/>
+      </radialGradient>
+
+    </defs>
+
+    <!-- шар -->
+    <circle
+      cx="32"
+      cy="32"
+      r="24"
+      fill="url(#base)"/>
+
+    <!-- rim shading -->
+    <circle
+      cx="32"
+      cy="32"
+      r="24"
+      fill="url(#rim)"/>
+
+    <!-- блик -->
+    <circle
+      cx="24"
+      cy="24"
+      r="6"
+      fill="white"
+      opacity="0.38"/>
+
+  </svg>
+  `;
+
+  const favicon = document.createElement('link');
+
+  favicon.rel = 'icon';
+  favicon.type = 'image/svg+xml';
+
+  favicon.href =
+    'data:image/svg+xml;charset=utf-8,' +
+    encodeURIComponent(svg);
+
+  document.head.appendChild(favicon);
+
+})();
+</script>
+<title>BALLS</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #0c0c0c;
+    color: #c0c0c0;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 12px;
+    line-height: 1.4;
+    overflow: hidden;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    user-select: none;
+  }
+
+  /* ── TITLE BAR ── */
+  #titlebar {
+    background: #000080;
+    color: #fff;
+    padding: 2px 6px 2px 5px;
+    font-weight: bold;
+    font-size: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0;
+    gap: 8px;
+  }
+  #titlebar-left { display: flex; align-items: center; gap: 5px; }
+  .title-icon { color: #ffff55; font-size: 10px; }
+  .win-btns { display: flex; gap: 2px; }
+  .win-btn {
+    background: #c0c0c0;
+    color: #000;
+    border: none;
+    width: 16px;
+    height: 13px;
+    font-size: 9px;
+    font-weight: bold;
+    cursor: default;
+    font-family: 'Courier New', monospace;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .win-btn.close { background: #c00; color: #fff; }
+
+  /* ── MENU BAR ── */
+  #menubar {
+    background: #0c0c0c;
+    border-bottom: 1px solid #333;
+    padding: 1px 6px;
+    display: flex;
+    gap: 0;
+    flex-shrink: 0;
+  }
+  .menu-item {
+    padding: 1px 8px;
+    color: #aaa;
+    cursor: default;
+    font-size: 11px;
+    letter-spacing: 0.3px;
+  }
+  .menu-item:hover { background: #000080; color: #fff; }
+  .menu-item span { text-decoration: underline; }
+
+  /* ── CONTROL BAR ── */
+  #ctrlbar {
+    background: #0c0c0c;
+    border-bottom: 1px solid #2a2a2a;
+    padding: 5px 8px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+  }
+  .btn {
+    background: #0c0c0c;
+    color: #b0b0b0;
+    border: 1px solid #555;
+    padding: 3px 12px;
+    cursor: pointer;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    letter-spacing: 0.3px;
+    outline: none;
+    min-width: 130px;
+    text-align: left;
+  }
+  .btn:hover { border-color: #bbb; color: #fff; background: #171717; }
+  .btn:active { background: #222; }
+  .btn.active { border-color: #00cc00; color: #00ff00; }
+  .btn.active-red { border-color: #cc0000; color: #ff4444; }
+
+  .ctrl-sep { color: #333; font-size: 14px; }
+  
+  #btnSim {
+  animation: pulse-animation 2s infinite; /* Название, длительность (2 сек), бесконечно */
+}
+
+/* 2. Описываем саму анимацию */
+@keyframes pulse-animation {
+  0% {
+    /* В начале анимации свечения почти нет */
+    box-shadow: 0 0 0 0 rgba(0, 255, 102, 0.4);
+  }
+  70% {
+    /* К середине волна плавно расширяется и затухает */
+    box-shadow: 0 0 0 10px rgba(0, 255, 102, 0);
+  }
+  100% {
+    /* В конце волна полностью исчезает */
+    box-shadow: 0 0 0 0 rgba(0, 255, 102, 0);
+  }
+}
+
+  #status-area {
+    flex: 1;
+    color: #555;
+    font-size: 11px;
+    display: flex;
+    align-items: center;
+    gap: 0;
+    flex-wrap: wrap;
+  }
+  .sval { color: #999; }
+  .sval.live { color: #00ff00; animation: blink-live 0.9s step-end infinite; }
+  .sval.live-red { color: #ff4444; animation: blink-live 0.9s step-end infinite; }
+  .sval.live-yellow { color: #ffdd00; animation: blink-live 0.9s step-end infinite; }
+  .sval.live-green { color: #44ff88; animation: blink-live 0.9s step-end infinite; }
+  .ssep { color: #333; margin: 0 8px; }
+  @keyframes blink-live {
+    0%,100% { opacity: 1; }
+    50% { opacity: 0.25; }
+  }
+
+  /* ── CANVAS AREA ── */
+  #canvas-wrap {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+  }
+  canvas {
+    display: block;
+    cursor: none;
+  }
+  #scanlines {
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      to bottom,
+      transparent 0px, transparent 1px,
+      rgba(0,0,0,0.07) 1px, rgba(0,0,0,0.07) 2px
+    );
+    pointer-events: none;
+    z-index: 1;
+  }
+  #vignette {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at center,
+      transparent 60%,
+      rgba(0,0,0,0.55) 100%
+    );
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  /* ── SETTINGS PANEL ── */
+  #settings-panel {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 310px;
+    height: 100%;
+    background: #0e0e0e;
+    border-left: 1px solid #2a2a2a;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    transform: translateX(100%);
+    transition: transform 0.15s ease;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+  #settings-panel.open { transform: translateX(0); }
+
+  .panel-titlebar {
+    background: #000080;
+    color: #fff;
+    padding: 3px 8px;
+    font-weight: bold;
+    font-size: 11px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0;
+    letter-spacing: 0.5px;
+  }
+  .panel-close {
+    background: #c00;
+    color: #fff;
+    border: none;
+    width: 16px;
+    height: 13px;
+    font-size: 9px;
+    font-weight: bold;
+    cursor: pointer;
+    font-family: 'Courier New', monospace;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .panel-close:hover { background: #f00; }
+
+  .panel-section {
+    padding: 8px 10px;
+    border-bottom: 1px solid #1e1e1e;
+  }
+  .panel-section-title {
+    color: #ffff55;
+    font-size: 10px;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+  }
+
+  .setting-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 7px;
+    gap: 8px;
+  }
+  .setting-label {
+    color: #888;
+    font-size: 11px;
+    flex: 1;
+    min-width: 0;
+    letter-spacing: 0.2px;
+  }
+  .setting-val {
+    color: #00cc00;
+    font-size: 11px;
+    min-width: 42px;
+    text-align: right;
+    font-weight: bold;
+  }
+
+  /* Retro slider */
+  input[type=range] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 120px;
+    height: 12px;
+    background: #111;
+    border: 1px solid #3a3a3a;
+    outline: none;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 10px;
+    height: 12px;
+    background: #c0c0c0;
+    border: none;
+    cursor: pointer;
+  }
+  input[type=range]:hover { border-color: #666; }
+  input[type=range]::-webkit-slider-thumb:hover { background: #fff; }
+
+  /* Toggle checkbox */
+  .toggle-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+  }
+  .toggle-box {
+    width: 14px;
+    height: 14px;
+    border: 1px solid #555;
+    background: #111;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #00ff00;
+    font-size: 10px;
+    flex-shrink: 0;
+  }
+  .toggle-wrap:hover .toggle-box { border-color: #999; }
+  .toggle-box.checked { background: #001a00; border-color: #00cc00; }
+  .toggle-label { color: #888; font-size: 11px; }
+
+  /* Physics mode buttons */
+  .mode-btns { display: flex; gap: 3px; width: 100%; }
+  .mode-btn {
+    background: #0c0c0c;
+    color: #555;
+    border: 1px solid #2a2a2a;
+    padding: 4px 0;
+    cursor: pointer;
+    font-family: 'Courier New', monospace;
+    font-size: 10px;
+    letter-spacing: 0.3px;
+    flex: 1;
+    text-align: center;
+    outline: none;
+  }
+  .mode-btn:hover { border-color: #555; color: #aaa; background: #111; }
+  .mode-btn.active { border-color: #ffff55; color: #ffff55; background: #1a1a00; }
+  .mode-desc {
+    color: #444;
+    font-size: 10px;
+    letter-spacing: 0.2px;
+    margin-top: 2px;
+    min-height: 14px;
+  }
+
+  .panel-apply {
+    margin: 8px 10px 6px;
+    background: #001a00;
+    color: #00ff00;
+    border: 1px solid #00cc00;
+    padding: 5px 12px;
+    cursor: pointer;
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+    width: calc(100% - 20px);
+    text-align: center;
+  }
+  .panel-apply:hover { background: #002800; border-color: #00ff00; color: #66ff66; }
+  .panel-apply:active { background: #003300; }
+
+  .panel-reset {
+    margin: 0 10px 10px;
+    background: #0c0c0c;
+    color: #666;
+    border: 1px solid #333;
+    padding: 4px 12px;
+    cursor: pointer;
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+    width: calc(100% - 20px);
+    text-align: center;
+  }
+  .panel-reset:hover { border-color: #666; color: #999; }
+
+  /* ── STATUS BAR ── */
+  #statusbar {
+    background: #0c0c0c;
+    border-top: 1px solid #1e1e1e;
+    padding: 2px 8px;
+    display: flex;
+    gap: 0;
+    font-size: 11px;
+    color: #444;
+    flex-shrink: 0;
+    align-items: center;
+  }
+  .sb-cell {
+    padding: 0 10px 0 0;
+    margin-right: 10px;
+    border-right: 1px solid #222;
+    color: #555;
+    white-space: nowrap;
+  }
+  .sb-cell:last-child { border-right: none; margin-right: 0; }
+  .sb-key { color: #444; }
+  .sb-val { color: #666; }
+  #fps-display { margin-left: auto; color: #3a3a3a; }
+</style>
+</head>
+<body>
+
+<!-- TITLE BAR -->
+<div id="titlebar">
+  <div id="titlebar-left">
+    <span class="title-icon">▓</span>
+    <span>BALLS PHYSICS v2.1 &nbsp;—&nbsp; C:\BOBOSTUDIO\BALLS.EXE</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px">
+    <span style="color:#6666cc;font-size:11px;letter-spacing:0.3px" id="ball-count-label">256 BALLS | CLASSIC MODE</span>
+    <div class="win-btns">
+      <div class="win-btn">_</div>
+      <div class="win-btn">□</div>
+      <div class="win-btn close">×</div>
+    </div>
+  </div>
+</div>
+
+<!-- MENU BAR -->
+<div id="menubar">
+  <div class="menu-item"><span>F</span>ile</div>
+  <div class="menu-item"><span>S</span>imulation</div>
+  <div class="menu-item"><span>V</span>iew</div>
+  <div class="menu-item" id="menuSettings"><span>P</span>hysics Settings</div>
+  <div class="menu-item"><span>H</span>elp</div>
+</div>
+
+<!-- CONTROL BAR -->
+<div id="ctrlbar">
+  <button class="btn" id="btnSim">[▶] SIM: OFF</button>
+  <button class="btn" id="btnReset">[■] RESET</button>
+  <button class="btn" id="btnSettings">[⚙] PHYSICS</button>
+  <span class="ctrl-sep">│</span>
+  <div id="status-area">
+    <span class="sb-key">CURSOR_R:</span>&nbsp;<span class="sval" id="sRadius">80</span><span class="sb-key">px</span>
+    <span class="ssep">│</span>
+    <span class="sb-key">CURSOR:</span>&nbsp;<span class="sval" id="sCursorMode">IDLE</span>
+    <span class="ssep">│</span>
+    <span class="sb-key">SIM:</span>&nbsp;<span class="sval" id="sStatus">IDLE</span>
+    <span class="ssep">│</span>
+    <span class="sb-key">PHYS:</span>&nbsp;<span class="sval" id="sPhysicsMode">CLASSIC</span>
+    <span class="ssep">│</span>
+    <span class="sb-key">FPS:</span>&nbsp;<span class="sval" id="sFps">--</span>
+    <span class="ssep">│</span>
+    <span class="sb-key">BALLS:</span>&nbsp;<span class="sval" id="sBallCount">256</span>
+  </div>
+</div>
+
+<!-- CANVAS -->
+<div id="canvas-wrap">
+  <canvas id="canvas"></canvas>
+  <div id="scanlines"></div>
+  <div id="vignette"></div>
+
+  <!-- SETTINGS PANEL -->
+  <div id="settings-panel">
+    <div class="panel-titlebar">
+      <span>⚙ PHYSICS SETTINGS</span>
+      <button class="panel-close" id="panelClose">×</button>
+    </div>
+
+    <!-- PHYSICS ALGORITHM -->
+    <div class="panel-section">
+      <div class="panel-section-title">▸ PHYSICS ALGORITHM</div>
+      <div class="setting-row" style="margin-bottom:6px">
+        <div class="mode-btns">
+          <button class="mode-btn active" id="modeClassic">CLASSIC</button>
+          <button class="mode-btn" id="modeCluster">CLUSTER</button>
+          <button class="mode-btn" id="modeSwarm">SWARM</button>
+        </div>
+      </div>
+      <div class="mode-desc" id="modeDesc">Cosine hue-force → worm/snake formations</div>
+    </div>
+
+    <!-- FORCES -->
+    <div class="panel-section">
+      <div class="panel-section-title">▸ FORCE PARAMETERS</div>
+
+      <div class="setting-row">
+        <span class="setting-label">ATTRACT FORCE</span>
+        <input type="range" id="sForceStr" min="1" max="100" value="45" step="1">
+        <span class="setting-val" id="vForceStr">0.0045</span>
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">MAX DISTANCE</span>
+        <input type="range" id="sMaxDist" min="30" max="800" value="400" step="5">
+        <span class="setting-val" id="vMaxDist">155px</span>
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">HUE THRESHOLD</span>
+        <input type="range" id="sHueThr" min="0" max="90" value="0" step="5">
+        <span class="setting-val" id="vHueThr">0°</span>
+      </div>
+    </div>
+
+    <!-- DYNAMICS -->
+    <div class="panel-section">
+      <div class="panel-section-title">▸ DYNAMICS</div>
+
+      <div class="setting-row">
+        <span class="setting-label">DAMPING</span>
+        <input type="range" id="sDamping" min="800" max="999" value="976" step="1">
+        <span class="setting-val" id="vDamping">0.976</span>
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">MAX SPEED</span>
+        <input type="range" id="sMaxSpd" min="1" max="30" value="7" step="1">
+        <span class="setting-val" id="vMaxSpd">7px/f</span>
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">WALL BOUNCE</span>
+        <input type="range" id="sBounce" min="0" max="100" value="62" step="1">
+        <span class="setting-val" id="vBounce">0.62</span>
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">COLLISION ELASTIC</span>
+        <input type="range" id="sElastic" min="0" max="100" value="58" step="1">
+        <span class="setting-val" id="vElastic">0.58</span>
+      </div>
+    </div>
+
+    <!-- BALLS -->
+    <div class="panel-section">
+      <div class="panel-section-title">▸ BALL PROPERTIES</div>
+
+      <div class="setting-row">
+        <span class="setting-label">BALL COUNT <span style="color:#333">(reinit)</span></span>
+        <input type="range" id="sBallN" min="16" max="1024" value="256" step="8">
+        <span class="setting-val" id="vBallN">256</span>
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">BALL RADIUS</span>
+        <input type="range" id="sBallR" min="2" max="22" value="7" step="1">
+        <span class="setting-val" id="vBallR">7px</span>
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">COLOR SATURATION</span>
+        <input type="range" id="sSat" min="20" max="100" value="88" step="2">
+        <span class="setting-val" id="vSat">88%</span>
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">COLOR LIGHTNESS</span>
+        <input type="range" id="sLit" min="30" max="75" value="56" step="1">
+        <span class="setting-val" id="vLit">56%</span>
+      </div>
+    </div>
+
+    <!-- CURSOR -->
+    <div class="panel-section">
+      <div class="panel-section-title">▸ CURSOR INTERACTION</div>
+
+      <div class="setting-row">
+        <span class="setting-label">CURSOR FORCE</span>
+        <input type="range" id="sCursorForce" min="5" max="200" value="15" step="5">
+        <span class="setting-val" id="vCursorForce">5.5</span>
+      
+    
+      </div>
+      <div style="color:#333;font-size:10px;margin-top:4px;line-height:1.5">
+        LMB: grab+move frozen balls<br>
+        MMB (wheel click): push repulsion<br>
+        RMB: attract balls
+      </div>
+    </div>
+
+    <!-- GRAVITY -->
+    <div class="panel-section">
+      <div class="panel-section-title">▸ GRAVITY</div>
+      <div class="setting-row">
+        <span class="setting-label">GRAVITY Y</span>
+        <input type="range" id="sGravity" min="0" max="50" value="0" step="1">
+        <span class="setting-val" id="vGravity">0.00</span>
+      </div>
+    </div>
+
+    <button class="panel-apply" id="panelApply">[↺] REINIT BALLS</button>
+    <button class="panel-reset" id="panelResetDefaults">[↺] RESTORE DEFAULTS</button>
+  </div>
+</div>
+
+<!-- STATUS BAR -->
+<div id="statusbar">
+  <div class="sb-cell"><span class="sb-key">[LMB]</span> <span class="sb-val">GRAB+MOVE</span></div>
+  <div class="sb-cell"><span class="sb-key">[MMB]</span> <span class="sb-val">PUSH</span></div>
+  <div class="sb-cell"><span class="sb-key">[RMB]</span> <span class="sb-val">ATTRACT</span></div>
+  <div class="sb-cell"><span class="sb-key">[SCROLL]</span> <span class="sb-val">CURSOR RADIUS</span></div>
+  <div class="sb-cell"><span class="sb-key">SIM ON:</span> <span class="sb-val">SAME HUE → ATTRACT &nbsp;|&nbsp; DIFF HUE → REPEL</span></div>
+  <div class="sb-cell" id="fps-display">READY</div>
+</div>
+
+<script>
+'use strict';
+
+// ═══════════════════════════════════════════════
+// CONFIG  (most fields apply live via liveBind)
+// ═══════════════════════════════════════════════
+let CFG = {
+  MODE:         'SWARM',
+  N:            254,
+  R:            7,
+  DAMPING:      0.976,
+  MAX_SPD:      7,
+  FORCE_STR:    0.0045,
+  MAX_DIST:     400,
+  BOUNCE:       0.62,
+  ELASTIC:      0.58,
+  CURSOR_FORCE: 1.5,
+  GRAVITY:      0,
+  HUE_THR:      0,
+  SAT:          88,
+  LIT:          56,
+};
+const DEFAULTS = { ...CFG };
+
+// Physics mode: 'CLASSIC' | 'CLUSTER' | 'SWARM'
+let PHYSICS_MODE = CFG.MODE;
+
+function syncUIFromCFG() {
+
+  document.getElementById('sForceStr').value =
+    CFG.FORCE_STR * 10000;
+
+  document.getElementById('sMaxDist').value =
+    CFG.MAX_DIST;
+
+  document.getElementById('sHueThr').value =
+    CFG.HUE_THR;
+
+  document.getElementById('sDamping').value =
+    CFG.DAMPING * 1000;
+
+  document.getElementById('sMaxSpd').value =
+    CFG.MAX_SPD;
+
+  document.getElementById('sBounce').value =
+    CFG.BOUNCE * 100;
+
+  document.getElementById('sElastic').value =
+    CFG.ELASTIC * 100;
+
+  document.getElementById('sBallN').value =
+    CFG.N;
+
+  document.getElementById('sBallR').value =
+    CFG.R;
+
+  document.getElementById('sSat').value =
+    CFG.SAT;
+
+  document.getElementById('sLit').value =
+    CFG.LIT;
+
+  document.getElementById('sCursorForce').value =
+    CFG.CURSOR_FORCE * 10;
+
+  document.getElementById('sGravity').value =
+    CFG.GRAVITY;
+
+  // refresh labels + live values
+  [
+    'sForceStr',
+    'sMaxDist',
+    'sHueThr',
+    'sDamping',
+    'sMaxSpd',
+    'sBounce',
+    'sElastic',
+    'sBallN',
+    'sBallR',
+    'sSat',
+    'sLit',
+    'sCursorForce',
+    'sGravity'
+  ].forEach(id => {
+    document
+      .getElementById(id)
+      .dispatchEvent(new Event('input'));
+  });
+
+  document.getElementById('sBallCount').textContent =
+    CFG.N;
+
+  document.getElementById('ball-count-label').textContent =
+    `${CFG.N} BALLS | ${PHYSICS_MODE} MODE`;
+}
+
+const MODE_DESCRIPTIONS = {
+  CLASSIC: 'Cosine hue-force → worm/snake formations',
+  CLUSTER: 'Lennard-Jones potential → circular disc clusters',
+  SWARM:   'Boids algorithm (cohesion+alignment+separation) → flocking',
+};
+
+// Derived — recomputed whenever source values change
+let MD2 = CFG.MAX_DIST * CFG.MAX_DIST;
+let D   = CFG.R * 2;
+
+// ═══════════════════════════════════════════════
+// CANVAS
+// ═══════════════════════════════════════════════
+const canvas = document.getElementById('canvas');
+const ctx    = canvas.getContext('2d');
+const wrap   = document.getElementById('canvas-wrap');
+
+// ═══════════════════════════════════════════════
+// TYPED ARRAYS (max 512 balls)
+// ═══════════════════════════════════════════════
+const MAX_N = 1024;
+const px  = new Float32Array(MAX_N);
+const py  = new Float32Array(MAX_N);
+const vx  = new Float32Array(MAX_N);
+const vy  = new Float32Array(MAX_N);
+const hues     = new Float32Array(MAX_N);
+const colorStr = new Array(MAX_N);
+
+// Frozen balls state (LMB grab)
+const frozenMask = new Uint8Array(MAX_N); // 1 = frozen
+const frozenOx   = new Float32Array(MAX_N); // offset from cursor
+const frozenOy   = new Float32Array(MAX_N);
+let   frozenCount = 0;
+
+// Swarm mode accumulators (reused each frame)
+const swarmCx  = new Float32Array(MAX_N);
+const swarmCy  = new Float32Array(MAX_N);
+const swarmVx  = new Float32Array(MAX_N);
+const swarmVy  = new Float32Array(MAX_N);
+const swarmCnt = new Int32Array(MAX_N);
+
+// FTABLE — cosine lookup for CLASSIC mode
+const FTABLE = new Float32Array(181);
+for (let deg = 0; deg <= 180; deg++) {
+  FTABLE[deg] = Math.cos(deg * Math.PI / 180);
+}
+
+// ═══════════════════════════════════════════════
+// MOUSE STATE
+// ═══════════════════════════════════════════════
+let mx = -9999, my = -9999;
+let mdown  = false; // LMB: grab/freeze
+let mmdown = false; // MMB wheel-click: push
+let mrdown = false; // RMB: attract
+let mRadius    = 80;
+let simRunning = false;
+
+// FPS tracking
+let lastTs   = performance.now();
+let frameCnt = 0;
+let fpsAcc   = 0;
+
+// Ball highlight template (rebuilt when R changes)
+let ballTpl = null;
+
+// ═══════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════
+function buildHues() {
+  const N = CFG.N;
+  for (let i = 0; i < N; i++) {
+    hues[i]     = (i / N) * 360;
+    colorStr[i] = `hsl(${hues[i].toFixed(1)},${CFG.SAT}%,${CFG.LIT}%)`;
+  }
+}
+buildHues();
+
+function rebuildColors() {
+  for (let i = 0; i < CFG.N; i++) {
+    colorStr[i] = `hsl(${hues[i].toFixed(1)},${CFG.SAT}%,${CFG.LIT}%)`;
+  }
+}
+
+function buildBallTemplate() {
+  const R = CFG.R;
+  const SZ = (R + 2) * 2;
+  ballTpl = document.createElement('canvas');
+  ballTpl.width = ballTpl.height = SZ;
+  const btx = ballTpl.getContext('2d');
+  const grd = btx.createRadialGradient(R+2, R+2, R*0.5, R+2, R+2, R+2);
+  grd.addColorStop(0,   'rgba(255,255,255,0)');
+  grd.addColorStop(0.7, 'rgba(255,255,255,0)');
+  grd.addColorStop(1,   'rgba(255,255,255,0.12)');
+  btx.beginPath();
+  btx.arc(R+2, R+2, R+2, 0, Math.PI*2);
+  btx.fillStyle = grd;
+  btx.fill();
+  btx.beginPath();
+  btx.arc(R+2 - R*0.28, R+2 - R*0.28, R*0.28, 0, Math.PI*2);
+  btx.fillStyle = 'rgba(255,255,255,0.4)';
+  btx.fill();
+}
+buildBallTemplate();
+
+
+function scatter() {
+  const N = CFG.N, R = CFG.R;
+  const W = canvas.width, H = canvas.height;
+  const m = R + 4;
+  for (let i = 0; i < N; i++) {
+    px[i] = m + Math.random() * (W - 2*m);
+    py[i] = m + Math.random() * (H - 2*m);
+    vx[i] = 0; vy[i] = 0;
+  }
+  frozenMask.fill(0);
+  frozenCount = 0;
+}
+
+function reinitBalls() {
+
+  const newN =
+    parseInt(
+      document.getElementById('sBallN').value
+    );
+
+  CFG.N = newN;
+
+  MD2 = CFG.MAX_DIST * CFG.MAX_DIST;
+  D   = CFG.R * 2;
+
+  buildHues();
+  buildBallTemplate();
+  scatter();
+
+  document.getElementById('sBallCount').textContent =
+    CFG.N;
+
+  document.getElementById('ball-count-label').textContent =
+    `${CFG.N} BALLS | ${PHYSICS_MODE} MODE`;
+
+  document.getElementById('sStatus').textContent =
+    'REINIT OK';
+
+  setTimeout(() => {
+
+    document.getElementById('sStatus').textContent =
+      simRunning
+        ? 'RUNNING'
+        : 'IDLE';
+
+  }, 800);
+}
+
+function clampBalls() {
+  const N = CFG.N, R = CFG.R;
+  const W = canvas.width, H = canvas.height;
+  for (let i = 0; i < N; i++) {
+    px[i] = Math.max(R, Math.min(W-R, px[i]));
+    py[i] = Math.max(R, Math.min(H-R, py[i]));
+  }
+}
+
+function hueDiff(a, b) {
+  let d = Math.abs(a - b);
+  return d > 180 ? 360 - d : d;
+}
+
+// ═══════════════════════════════════════════════
+// RESIZE
+// ═══════════════════════════════════════════════
+function resize() {
+  canvas.width  = wrap.clientWidth;
+  canvas.height = wrap.clientHeight;
+}
+window.addEventListener('resize', () => { resize(); clampBalls(); });
+resize();
+
+// ═══════════════════════════════════════════════
+// PHYSICS UPDATE
+// ═══════════════════════════════════════════════
+function update() {
+  const N = CFG.N, R = CFG.R;
+  const W = canvas.width, H = canvas.height;
+  const MD = CFG.MAX_DIST;
+
+  // ── 1. LMB: Move frozen (grabbed) balls ──────
+  if (mdown && frozenCount > 0) {
+    for (let i = 0; i < N; i++) {
+      if (!frozenMask[i]) continue;
+      px[i] = mx + frozenOx[i];
+      py[i] = my + frozenOy[i];
+      // Clamp to canvas
+      px[i] = Math.max(R, Math.min(W-R, px[i]));
+      py[i] = Math.max(R, Math.min(H-R, py[i]));
+      vx[i] = 0; vy[i] = 0;
+    }
+  }
+
+  // ── 2. MMB: Push (repulsion) ─────────────────
+  if (mmdown) {
+    const r2 = mRadius * mRadius;
+    for (let i = 0; i < N; i++) {
+      if (frozenMask[i]) continue;
+      const dx = px[i]-mx, dy = py[i]-my;
+      const d2 = dx*dx + dy*dy;
+      if (d2 < r2 && d2 > 0.01) {
+        const d = Math.sqrt(d2);
+        const f = ((mRadius-d)/mRadius) * CFG.CURSOR_FORCE;
+        vx[i] += (dx/d)*f;
+        vy[i] += (dy/d)*f;
+      }
+    }
+  }
+
+  // ── 3. RMB: Attract ──────────────────────────
+  if (mrdown) {
+    const r2 = mRadius * mRadius;
+    for (let i = 0; i < N; i++) {
+      if (frozenMask[i]) continue;
+      const dx = px[i]-mx, dy = py[i]-my;
+      const d2 = dx*dx + dy*dy;
+      if (d2 < r2 && d2 > 0.01) {
+        const d = Math.sqrt(d2);
+        const f = ((mRadius-d)/mRadius) * CFG.CURSOR_FORCE;
+        vx[i] -= (dx/d)*f;
+        vy[i] -= (dy/d)*f;
+      }
+    }
+  }
+
+  // ── 4. Pairwise physics ──────────────────────
+  const IS_SWARM   = PHYSICS_MODE === 'SWARM';
+  const IS_CLUSTER = PHYSICS_MODE === 'CLUSTER';
+
+  // Swarm: clear accumulators
+  if (IS_SWARM) {
+    swarmCx.fill(0, 0, N); swarmCy.fill(0, 0, N);
+    swarmVx.fill(0, 0, N); swarmVy.fill(0, 0, N);
+    swarmCnt.fill(0, 0, N);
+  }
+
+  // CLUSTER: LJ equilibrium at 3.2 ball diameters
+  const r0_lj  = D * 3.2;
+  // SWARM: separation zone
+  const SEP_Z  = D * 2.8;
+  // SWARM/CLUSTER: minimum hue group threshold
+  const HUE_GRP = Math.max(CFG.HUE_THR, 30);
+
+  for (let i = 0; i < N-1; i++) {
+    const pxi = px[i], pyi = py[i];
+    for (let j = i+1; j < N; j++) {
+      const dx = px[j]-pxi;
+      if (dx > MD || dx < -MD) continue;
+      const dy = py[j]-pyi;
+      if (dy > MD || dy < -MD) continue;
+      const d2 = dx*dx + dy*dy;
+      if (d2 > MD2) continue;
+      if (d2 < 0.01) { px[j] += 0.5; py[j] += 0.5; continue; }
+      const d = Math.sqrt(d2);
+
+      // ── Collision resolution (all modes) ────────
+      if (d < D) {
+        const overlap = (D-d)*0.5;
+        const nx = dx/d, ny = dy/d;
+        if (!frozenMask[i]) { px[i]-=nx*overlap; py[i]-=ny*overlap; }
+        if (!frozenMask[j]) { px[j]+=nx*overlap; py[j]+=ny*overlap; }
+        const dv = (vx[j]-vx[i])*nx + (vy[j]-vy[i])*ny;
+        if (dv < 0) {
+          const imp = dv * CFG.ELASTIC;
+          if (!frozenMask[i]) { vx[i]+=imp*nx; vy[i]+=imp*ny; }
+          if (!frozenMask[j]) { vx[j]-=imp*nx; vy[j]-=imp*ny; }
+        }
+        continue;
+      }
+
+      if (!simRunning) continue;
+
+      const hd = hueDiff(hues[i], hues[j]);
+      const nx = dx/d, ny = dy/d;
+
+      // ════════════════════════════════
+      // CLASSIC: cosine hue-force
+      // ════════════════════════════════
+      if (!IS_SWARM && !IS_CLUSTER) {
+        let fdir;
+        if (hd <= CFG.HUE_THR) {
+          fdir = 1;
+        } else {
+          fdir = FTABLE[hd < 180 ? (hd+0.5)|0 : 180];
+        }
+        const fmag = fdir * CFG.FORCE_STR * (MD-d)/MD;
+        if (!frozenMask[i]) { vx[i]+=nx*fmag; vy[i]+=ny*fmag; }
+        if (!frozenMask[j]) { vx[j]-=nx*fmag; vy[j]-=ny*fmag; }
+      }
+
+      // ════════════════════════════════
+      // CLUSTER: Lennard-Jones potential
+      // Same hue → LJ equilibrium disc
+      // Diff hue → repel
+      // ════════════════════════════════
+      else if (IS_CLUSTER) {
+        let fmag;
+        if (hd <= HUE_GRP) {
+          // LJ: fmag > 0 = attract toward j, < 0 = repel
+          // ratio=r0/d: <1 at large d (attract), >1 at small d (repel)
+          const ratio  = r0_lj / d;
+          const ratio2 = ratio * ratio;
+          const ratio4 = ratio2 * ratio2;
+          // ratio2 - ratio4: negative when d<r0 (repel), positive when d>r0 (attract)
+          fmag = Math.max(-0.15, Math.min(0.10,
+            CFG.FORCE_STR * 165 * (ratio2 - ratio4)));
+        } else {
+          // Different hue group: pure repulsion
+          const falloff = (MD-d)/MD;
+          fmag = -CFG.FORCE_STR * 0.7 * falloff;
+        }
+        if (!frozenMask[i]) { vx[i]+=nx*fmag; vy[i]+=ny*fmag; }
+        if (!frozenMask[j]) { vx[j]-=nx*fmag; vy[j]-=ny*fmag; }
+      }
+
+      // ════════════════════════════════
+      // SWARM: Boids — accumulate data,
+      // forces applied after loop
+      // ════════════════════════════════
+      else {
+        if (hd <= HUE_GRP) {
+          // Cohesion + alignment accumulators (symmetric)
+          swarmCx[i]  += px[j]; swarmCy[i]  += py[j];
+          swarmVx[i]  += vx[j]; swarmVy[i]  += vy[j];
+          swarmCnt[i] += 1;
+          swarmCx[j]  += pxi;   swarmCy[j]  += pyi;
+          swarmVx[j]  += vx[i]; swarmVy[j]  += vy[i];
+          swarmCnt[j] += 1;
+        } else {
+          // Different hue: mild repulsion
+          const falloff = (MD-d)/MD;
+          const fmag = -CFG.FORCE_STR * 0.5 * falloff;
+          if (!frozenMask[i]) { vx[i]+=nx*fmag; vy[i]+=ny*fmag; }
+          if (!frozenMask[j]) { vx[j]-=nx*fmag; vy[j]-=ny*fmag; }
+        }
+        // Separation zone: repel all balls regardless of hue
+        if (d < SEP_Z) {
+          const sep = CFG.FORCE_STR * 7 * (SEP_Z-d)/SEP_Z;
+          if (!frozenMask[i]) { vx[i]-=nx*sep; vy[i]-=ny*sep; }
+          if (!frozenMask[j]) { vx[j]+=nx*sep; vy[j]+=ny*sep; }
+        }
+      }
+    }
+  }
+
+  // ── Apply SWARM boid forces ──────────────────
+  if (IS_SWARM && simRunning) {
+    for (let i = 0; i < N; i++) {
+      if (frozenMask[i] || swarmCnt[i] === 0) continue;
+      const cnt = swarmCnt[i];
+      // Cohesion: drift toward center of same-hue neighbors
+      const tcx = swarmCx[i]/cnt - px[i];
+      const tcy = swarmCy[i]/cnt - py[i];
+      vx[i] += tcx * CFG.FORCE_STR * 0.20;
+      vy[i] += tcy * CFG.FORCE_STR * 0.20;
+      // Alignment: match average velocity of neighbors
+      vx[i] += (swarmVx[i]/cnt - vx[i]) * CFG.FORCE_STR * 7;
+      vy[i] += (swarmVy[i]/cnt - vy[i]) * CFG.FORCE_STR * 7;
+    }
+  }
+
+  // ── 5. Integrate, damp, clamp ────────────────
+  const MS2 = CFG.MAX_SPD * CFG.MAX_SPD;
+  for (let i = 0; i < N; i++) {
+    if (frozenMask[i]) continue;
+    vy[i] += CFG.GRAVITY * 0.01;
+    vx[i] *= CFG.DAMPING;
+    vy[i] *= CFG.DAMPING;
+    const spd2 = vx[i]*vx[i] + vy[i]*vy[i];
+    if (spd2 > MS2) {
+      const s = CFG.MAX_SPD / Math.sqrt(spd2);
+      vx[i] *= s; vy[i] *= s;
+    }
+    px[i] += vx[i]; py[i] += vy[i];
+    if (px[i] < R)     { px[i]=R;     vx[i]= Math.abs(vx[i])*CFG.BOUNCE; }
+    if (px[i] > W-R)   { px[i]=W-R;   vx[i]=-Math.abs(vx[i])*CFG.BOUNCE; }
+    if (py[i] < R)     { py[i]=R;     vy[i]= Math.abs(vy[i])*CFG.BOUNCE; }
+    if (py[i] > H-R)   { py[i]=H-R;   vy[i]=-Math.abs(vy[i])*CFG.BOUNCE; }
+  }
+}
+
+// ═══════════════════════════════════════════════
+// DRAW
+// ═══════════════════════════════════════════════
+function draw() {
+  const N = CFG.N, R = CFG.R;
+  const W = canvas.width, H = canvas.height;
+
+  ctx.fillStyle = '#0c0c0c';
+  ctx.fillRect(0, 0, W, H);
+
+  // Grid dots
+  ctx.fillStyle = '#181818';
+  const GS = 36;
+  for (let gx = GS; gx < W; gx += GS)
+    for (let gy = GS; gy < H; gy += GS)
+      ctx.fillRect(gx, gy, 1, 1);
+
+  // Pass 1: ball bodies
+  for (let i = 0; i < N; i++) {
+    ctx.beginPath();
+    ctx.arc(px[i], py[i], R, 0, Math.PI*2);
+    ctx.fillStyle = colorStr[i];
+    ctx.fill();
+  }
+
+  // Pass 1.5: frozen ball outlines (only while LMB held)
+  if (mdown && frozenCount > 0) {
+    ctx.lineWidth = 1.5;
+    for (let i = 0; i < N; i++) {
+      if (!frozenMask[i]) continue;
+      ctx.beginPath();
+      ctx.arc(px[i], py[i], R+2.5, 0, Math.PI*2);
+      ctx.strokeStyle = 'rgba(130,255,160,0.75)';
+      ctx.stroke();
+    }
+  }
+
+  // Pass 2: highlights
+  for (let i = 0; i < N; i++) {
+    ctx.drawImage(ballTpl, px[i]-R-2, py[i]-R-2);
+  }
+
+  // ── Cursor ───────────────────────────────────
+  if (mx > -1000) {
+    const isGrab    = mdown;
+    const isPush    = mmdown;
+    const isAttract = mrdown;
+
+    let color, baseAlpha;
+    if (isGrab) {
+      color = '80,255,140'; baseAlpha = 0.65;
+    } else if (isPush) {
+      color = '255,200,40'; baseAlpha = 0.65;
+    } else if (isAttract) {
+      color = '255,80,80'; baseAlpha = 0.65;
+    } else {
+      color = '255,255,255'; baseAlpha = 0.18;
+    }
+
+    const active = isGrab || isPush || isAttract;
+
+    // Cursor radius ring
+    ctx.setLineDash([5, 5]);
+    ctx.beginPath();
+    ctx.arc(mx, my, mRadius, 0, Math.PI*2);
+    ctx.strokeStyle = `rgba(${color},${baseAlpha})`;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Crosshair
+    const cl = 9;
+    ctx.strokeStyle = `rgba(${color},${active ? 0.85 : 0.3})`;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(mx-cl, my); ctx.lineTo(mx+cl, my);
+    ctx.moveTo(mx, my-cl); ctx.lineTo(mx, my+cl);
+    ctx.stroke();
+
+    // Frozen count tag
+    if (isGrab && frozenCount > 0) {
+      ctx.font = 'bold 10px "Courier New", monospace';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = `rgba(${color},0.85)`;
+      ctx.fillText(`×${frozenCount}`, mx + mRadius + 5, my);
+    }
+
+    // Push inner ring indicator
+    if (isPush) {
+      ctx.setLineDash([3, 8]);
+      ctx.strokeStyle = `rgba(${color},0.3)`;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(mx, my, mRadius*0.45, 0, Math.PI*2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // Attract inner ring indicator
+    if (isAttract) {
+      ctx.setLineDash([3, 8]);
+      ctx.strokeStyle = `rgba(${color},0.35)`;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(mx, my, mRadius*0.6, 0, Math.PI*2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════
+// MAIN LOOP
+// ═══════════════════════════════════════════════
+function loop(ts) {
+  requestAnimationFrame(loop);
+
+  const dt = ts-lastTs; lastTs = ts;
+  frameCnt++; fpsAcc += dt;
+  if (fpsAcc >= 600) {
+    const f = Math.round(frameCnt*1000/fpsAcc);
+    document.getElementById('sFps').textContent = f;
+    document.getElementById('fps-display').textContent =
+      `${f} FPS | ${simRunning ? 'SIM ACTIVE' : 'SIM IDLE'}`;
+    frameCnt = 0; fpsAcc = 0;
+  }
+
+  // Update cursor mode display
+  const cm = document.getElementById('sCursorMode');
+  if (mdown) {
+    cm.textContent = frozenCount > 0 ? `GRAB(${frozenCount})` : 'GRAB';
+    cm.className = 'sval live-green';
+  } else if (mmdown) {
+    cm.textContent = 'PUSH';
+    cm.className = 'sval live-yellow';
+  } else if (mrdown) {
+    cm.textContent = 'ATTRACT';
+    cm.className = 'sval live-red';
+  } else {
+    cm.textContent = 'IDLE';
+    cm.className = 'sval';
+  }
+
+  update();
+  draw();
+}
+
+// ═══════════════════════════════════════════════
+// CANVAS EVENTS
+// ═══════════════════════════════════════════════
+canvas.addEventListener('mousemove', e => {
+  const r = canvas.getBoundingClientRect();
+  mx = e.clientX - r.left;
+  my = e.clientY - r.top;
+});
+
+canvas.addEventListener('mouseleave', () => {
+  mx = -9999; my = -9999;
+  mdown = false; mmdown = false; mrdown = false;
+  frozenMask.fill(0, 0, CFG.N);
+  frozenCount = 0;
+});
+
+canvas.addEventListener('mousedown', e => {
+  // Prevent middle-click auto-scroll
+  if (e.button === 1) e.preventDefault();
+
+  if (e.button === 0) {
+    // LMB: freeze all balls currently inside cursor radius
+    mdown = true;
+    frozenMask.fill(0, 0, CFG.N);
+    frozenCount = 0;
+    const r2 = mRadius * mRadius;
+    for (let i = 0; i < CFG.N; i++) {
+      const dx = px[i]-mx, dy = py[i]-my;
+      if (dx*dx + dy*dy < r2) {
+        frozenMask[i] = 1;
+        frozenOx[i]   = dx; // offset stored so balls maintain relative position
+        frozenOy[i]   = dy;
+        frozenCount++;
+      }
+    }
+  }
+  if (e.button === 1) mmdown = true; // MMB: push
+  if (e.button === 2) mrdown = true; // RMB: attract
+});
+
+canvas.addEventListener('mouseup', e => {
+  if (e.button === 0) {
+    mdown = false;
+    frozenMask.fill(0, 0, CFG.N);
+    frozenCount = 0;
+  }
+  if (e.button === 1) mmdown = false;
+  if (e.button === 2) mrdown = false;
+});
+
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+canvas.addEventListener('auxclick',    e => { if (e.button === 1) e.preventDefault(); });
+
+canvas.addEventListener('wheel', e => {
+
+  e.preventDefault();
+
+  // ─────────────────────────────
+  // LMB held = rotate grabbed balls
+  // ─────────────────────────────
+  if (mdown && frozenCount > 0) {
+
+    const rot =
+      (e.deltaY > 0 ? 1 : -1) * 0.18;
+
+    const cos = Math.cos(rot);
+    const sin = Math.sin(rot);
+
+    for (let i = 0; i < CFG.N; i++) {
+
+      if (!frozenMask[i]) continue;
+
+      const ox = frozenOx[i];
+      const oy = frozenOy[i];
+
+      frozenOx[i] = ox * cos - oy * sin;
+      frozenOy[i] = ox * sin + oy * cos;
+    }
+
+    return;
+  }
+
+  // ─────────────────────────────
+  // Normal mode = resize radius
+  // ─────────────────────────────
+  mRadius = Math.max(
+    15,
+    Math.min(
+      360,
+      mRadius - e.deltaY * 0.28
+    )
+  );
+
+  document.getElementById('sRadius').textContent =
+    Math.round(mRadius);
+
+}, { passive: false });
+
+// ═══════════════════════════════════════════════
+// SIM / RESET
+// ═══════════════════════════════════════════════
+document.getElementById('btnSim').addEventListener('click', () => {
+  simRunning = !simRunning;
+  const btn = document.getElementById('btnSim');
+  btn.textContent = simRunning ? '[■] SIM: ON' : '[▶] SIM: OFF';
+  btn.classList.toggle('active', simRunning);
+  const s = document.getElementById('sStatus');
+  s.textContent = simRunning ? 'RUNNING' : 'IDLE';
+  s.className   = simRunning ? 'sval live' : 'sval';
+});
+
+document.getElementById('btnReset').addEventListener('click', () => {
+  scatter();
+  document.getElementById('sStatus').textContent = 'RESET OK';
+  setTimeout(() => {
+    document.getElementById('sStatus').textContent = simRunning ? 'RUNNING' : 'IDLE';
+  }, 800);
+});
+
+// ═══════════════════════════════════════════════
+// SETTINGS PANEL
+// ═══════════════════════════════════════════════
+const panel = document.getElementById('settings-panel');
+const openPanel  = () => panel.classList.add('open');
+const closePanel = () => panel.classList.remove('open');
+document.getElementById('btnSettings').addEventListener('click', openPanel);
+document.getElementById('menuSettings').addEventListener('click', openPanel);
+document.getElementById('panelClose').addEventListener('click', closePanel);
+
+// ── Slider display binding (display only) ────
+function bindSlider(id, valId, fmt) {
+  const sl = document.getElementById(id);
+  const vl = document.getElementById(valId);
+  sl.addEventListener('input', () => { vl.textContent = fmt(sl.value); });
+  vl.textContent = fmt(sl.value);
+}
+
+bindSlider('sForceStr',    'vForceStr',    v => (v/10000).toFixed(4));
+bindSlider('sMaxDist',     'vMaxDist',     v => v + 'px');
+bindSlider('sHueThr',      'vHueThr',      v => v + '°');
+bindSlider('sDamping',     'vDamping',     v => (v/1000).toFixed(3));
+bindSlider('sMaxSpd',      'vMaxSpd',      v => v + 'px/f');
+bindSlider('sBounce',      'vBounce',      v => (v/100).toFixed(2));
+bindSlider('sElastic',     'vElastic',     v => (v/100).toFixed(2));
+bindSlider('sBallN',       'vBallN',       v => v);
+bindSlider('sBallR',       'vBallR',       v => v + 'px');
+bindSlider('sSat',         'vSat',         v => v + '%');
+bindSlider('sLit',         'vLit',         v => v + '%');
+bindSlider('sCursorForce', 'vCursorForce', v => (v/10).toFixed(1));
+bindSlider('sGravity',     'vGravity',     v => (v/100).toFixed(2));
+
+// ── Live CFG binding (updates physics immediately) ──
+function liveBind(id, cfgKey, fn) {
+  document.getElementById(id).addEventListener('input', function () {
+    CFG[cfgKey] = fn(this.value);
+    if (cfgKey === 'MAX_DIST') MD2 = CFG.MAX_DIST * CFG.MAX_DIST;
+    if (cfgKey === 'R')        { D = CFG.R * 2; buildBallTemplate(); }
+    if (cfgKey === 'SAT' || cfgKey === 'LIT') rebuildColors();
+  });
+}
+
+liveBind('sForceStr',    'FORCE_STR',    v => parseInt(v) / 10000);
+liveBind('sMaxDist',     'MAX_DIST',     v => parseInt(v));
+liveBind('sHueThr',      'HUE_THR',      v => parseInt(v));
+liveBind('sDamping',     'DAMPING',      v => parseInt(v) / 1000);
+liveBind('sMaxSpd',      'MAX_SPD',      v => parseFloat(v));
+liveBind('sBounce',      'BOUNCE',       v => parseInt(v) / 100);
+liveBind('sElastic',     'ELASTIC',      v => parseInt(v) / 100);
+liveBind('sBallR',       'R',            v => parseInt(v));
+liveBind('sSat',         'SAT',          v => parseInt(v));
+liveBind('sLit',         'LIT',          v => parseInt(v));
+liveBind('sCursorForce', 'CURSOR_FORCE', v => parseInt(v) / 10);
+liveBind('sGravity',     'GRAVITY',      v => parseInt(v));
+
+// ── Toggle ────────────────────────────────────
+
+// ── Physics mode ──────────────────────────────
+function setPhysicsMode(mode) {
+  PHYSICS_MODE = mode;
+  CFG.MODE = mode;
+  document.getElementById('modeDesc').textContent = MODE_DESCRIPTIONS[mode];
+  document.getElementById('modeClassic').classList.toggle('active', mode === 'CLASSIC');
+  document.getElementById('modeCluster').classList.toggle('active', mode === 'CLUSTER');
+  document.getElementById('modeSwarm').classList.toggle('active',   mode === 'SWARM');
+  document.getElementById('sPhysicsMode').textContent = mode;
+  document.getElementById('ball-count-label').textContent =
+    `${CFG.N} BALLS | ${mode} MODE`;
+}
+
+document.getElementById('modeClassic').addEventListener('click', () => setPhysicsMode('CLASSIC'));
+document.getElementById('modeCluster').addEventListener('click', () => setPhysicsMode('CLUSTER'));
+document.getElementById('modeSwarm').addEventListener('click',   () => setPhysicsMode('SWARM'));
+
+// ── Apply (reinit ball count / positions) ────
+document
+  .getElementById('panelApply')
+  .addEventListener('click', reinitBalls);
+
+// ── Reset defaults ────────────────────────────
+document.getElementById('panelResetDefaults').addEventListener('click', () => {
+
+ CFG = { ...DEFAULTS };
+
+MD2 = CFG.MAX_DIST * CFG.MAX_DIST;
+D   = CFG.R * 2;
+
+syncUIFromCFG();
+setPhysicsMode(CFG.MODE);
+
+buildHues();
+buildBallTemplate();
+scatter();
+});
+
+// ═══════════════════════════════════════════════
+// BOOT
+// ═══════════════════════════════════════════════
+document.addEventListener('keydown', (e) => {
+
+   // не спамить при удержании
+  if (e.repeat) return;
+
+  // ─────────────────────────────
+  // SPACE → SIM ON/OFF
+  // ─────────────────────────────
+  if (e.code === 'Space') {
+
+    e.preventDefault();
+
+    simRunning = !simRunning;
+
+    const btn = document.getElementById('btnSim');
+
+    btn.textContent =
+      simRunning
+        ? '[■] SIM: ON'
+        : '[▶] SIM: OFF';
+
+    btn.classList.toggle('active', simRunning);
+
+    const s = document.getElementById('sStatus');
+
+    s.textContent =
+      simRunning
+        ? 'RUNNING'
+        : 'IDLE';
+
+    s.className =
+      simRunning
+        ? 'sval live'
+        : 'sval';
+  }
+
+  // ─────────────────────────────
+  // R → RESET
+  // ─────────────────────────────
+  if (e.code === 'KeyR') {
+
+  e.preventDefault();
+
+  reinitBalls();
+}
+
+  // ─────────────────────────────
+  // CTRL → TOGGLE PHYSICS PANEL
+  // ─────────────────────────────
+  if (
+    e.code === 'ControlLeft' ||
+    e.code === 'ControlRight'
+  ) {
+
+    e.preventDefault();
+
+    panel.classList.toggle('open');
+  }
+});
+setPhysicsMode(CFG.MODE);
+syncUIFromCFG();
+scatter();
+requestAnimationFrame(loop);
+
+</script>
+
+</body>
+</html>
