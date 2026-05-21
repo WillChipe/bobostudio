@@ -655,24 +655,25 @@ function hueDiff(a, b) {
 //   t=1.0 (cold)→ 300° violet
 function heatToHue(h) {
   const t = 1 - h;
-  if      (t < 0.22) return (t / 0.22) * 45;
-  else if (t < 0.35) return  45 + (t - 0.22) / 0.13 * 55;
-  else if (t < 0.44) return 100 + (t - 0.35) / 0.09 * 50;
-  else if (t < 0.62) return 150 + (t - 0.44) / 0.18 * 70;
-  else               return 220 + (t - 0.62) / 0.38 * 80;
+  if      (t < 0.40)   return (t / 0.40) * 5;                   // Глубокий красный: 40% (Hue 0->5)
+  else if (t < 0.4225) return   5 + (t - 0.40) / 0.0225 * 40;   // Переходный красный/оранжевый: 2.25% (Hue 5->45)
+  else if (t < 0.495)  return  45 + (t - 0.4225) / 0.0725 * 55;  // Жёлтый: 7.25% (Hue 45->100)
+  else if (t < 0.505)  return 100 + (t - 0.495) / 0.01 * 50;     // Зелёный: 1% (Hue 100->150)
+  else if (t < 0.5775) return 150 + (t - 0.505) / 0.0725 * 70;    // Голубой: 7.25% (Hue 150->220)
+  else                 return 220 + (t - 0.5775) / 0.4225 * 80;   // Синий: 42.25% (Hue 220->300)
 }
 
-// Inverse: hue → heat (used when entering LAVA from another mode)
+// Inverse: hue → heat
 function hueToHeat(hue) {
   let t;
-  if      (hue < 45)  t = (hue / 45) * 0.22;
-  else if (hue < 100) t = 0.22 + (hue -  45) /  55 * 0.13;
-  else if (hue < 150) t = 0.35 + (hue - 100) /  50 * 0.09;
-  else if (hue < 220) t = 0.44 + (hue - 150) /  70 * 0.18;
-  else                t = 0.62 + (hue - 220) /  80 * 0.38;
+  if      (hue < 5)   t = (hue / 5) * 0.40;
+  else if (hue < 45)  t = 0.40 + (hue - 5) / 40 * 0.0225;
+  else if (hue < 100) t = 0.4225 + (hue - 45) / 55 * 0.0725;
+  else if (hue < 150) t = 0.495 + (hue - 100) / 50 * 0.01;
+  else if (hue < 220) t = 0.505 + (hue - 150) / 70 * 0.0725;
+  else                t = 0.5775 + (hue - 220) / 80 * 0.4225;
   return Math.max(0, Math.min(1, 1 - t));
 }
-
 function buildHues() {
   const N = CFG.N;
   lavaExitTransition = false;
