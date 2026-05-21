@@ -382,7 +382,7 @@
       </div>
       <div class="setting-row">
         <span class="setting-label">MAX DISTANCE</span>
-        <input type="range" id="sMaxDist" min="30" max="800" value="400" step="5">
+        <input type="range" id="sMaxDist" min="30" max="1600" value="400" step="5">
         <span class="setting-val" id="vMaxDist">400px</span>
       </div>
       <div class="setting-row">
@@ -1264,7 +1264,7 @@ function update() {
           }
         } else {
           // Non-neighbors: repel
-          const fmag = -FNORM * 0.6 * falloff;
+          const fmag = -FNORM * 0.001 * falloff;
           if (!frozenMask[i]) { vx[i] += nx*fmag; vy[i] += ny*fmag; }
           if (!frozenMask[j]) { vx[j] -= nx*fmag; vy[j] -= ny*fmag; }
         }
