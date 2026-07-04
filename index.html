@@ -530,6 +530,166 @@
         ctx.fillStyle = 'rgba(255,255,255,0.22)'; ctx.fill();
       });
     }
+    // ── Icon: Rubik ──────────────────────────────────────────────────────────
+function drawRubikIcon(ctx, S) {
+
+  const R = S * 0.10;
+
+  ctx.save();
+
+  // ---------- Clip ----------
+  ctx.beginPath();
+  ctx.roundRect(0,0,S,S,R);
+  ctx.clip();
+
+  // ---------- Background ----------
+  ctx.fillStyle = '#070711';
+  ctx.fillRect(0,0,S,S);
+
+  // Атмосферное свечение
+  [
+    {x:S*0.25,y:S*0.25,r:S*0.8,c:'rgba(61,107,255,.18)'},
+    {x:S*0.80,y:S*0.75,r:S*0.7,c:'rgba(255,47,110,.16)'},
+    {x:S*0.50,y:S*0.10,r:S*0.6,c:'rgba(102,255,51,.10)'}
+  ].forEach(b=>{
+
+    const g=ctx.createRadialGradient(b.x,b.y,0,b.x,b.y,b.r);
+    g.addColorStop(0,b.c);
+    g.addColorStop(1,'rgba(0,0,0,0)');
+
+    ctx.fillStyle=g;
+    ctx.fillRect(0,0,S,S);
+
+  });
+
+  // ---------- Цвета ----------
+  const colors=[
+    '#ff2f6e',
+    '#ff8c1a',
+    '#f2f2f5',
+    '#ffff33',
+    '#66ff33',
+    '#3d6bff'
+  ];
+
+  // случайный порядок
+  const stickers=[];
+
+  while(stickers.length<9){
+
+      stickers.push(colors[Math.floor(Math.random()*colors.length)]);
+
+  }
+
+  // ---------- Параметры сетки ----------
+  const margin=S*0.12;
+  const gap=S*0.04;
+
+  const cell=(S-margin*2-gap*2)/3;
+
+  // ---------- Пластик ----------
+  ctx.fillStyle='#101018';
+
+  roundRectPath(
+      ctx,
+      margin-gap*0.5,
+      margin-gap*0.5,
+      cell*3+gap*2+gap,
+      cell*3+gap*2+gap,
+      S*0.05
+  );
+
+  ctx.fill();
+
+  // ---------- Наклейки ----------
+  let i=0;
+
+  for(let y=0;y<3;y++){
+
+    for(let x=0;x<3;x++){
+
+      const px=margin+x*(cell+gap);
+      const py=margin+y*(cell+gap);
+
+      // glow
+      ctx.save();
+      ctx.shadowColor=stickers[i];
+      ctx.shadowBlur=S*0.035;
+
+      const grad=ctx.createLinearGradient(px,py,px,py+cell);
+
+      grad.addColorStop(0,'rgba(255,255,255,.22)');
+      grad.addColorStop(.12,stickers[i]);
+      grad.addColorStop(1,mixColor(stickers[i],0.58));
+
+      ctx.fillStyle=grad;
+
+      roundRectPath(
+        ctx,
+        px,
+        py,
+        cell,
+        cell,
+        cell*0.12
+      );
+
+      ctx.fill();
+
+      ctx.restore();
+
+      // верхний блик
+      ctx.save();
+
+      const shine=ctx.createLinearGradient(px,py,px,py+cell*0.5);
+
+      shine.addColorStop(0,'rgba(255,255,255,.32)');
+      shine.addColorStop(1,'rgba(255,255,255,0)');
+
+      ctx.fillStyle=shine;
+
+      roundRectPath(
+        ctx,
+        px+cell*0.06,
+        py+cell*0.05,
+        cell*0.88,
+        cell*0.32,
+        cell*0.10
+      );
+
+      ctx.fill();
+
+      ctx.restore();
+
+      i++;
+
+    }
+
+  }
+
+  // ---------- Внутренняя рамка ----------
+  ctx.beginPath();
+  ctx.roundRect(0,0,S,S,R);
+
+  ctx.strokeStyle='rgba(255,255,255,.06)';
+  ctx.lineWidth=S*0.006;
+  ctx.stroke();
+
+  ctx.restore();
+
+}
+
+
+// затем рядом добавить функцию
+
+function mixColor(hex,f){
+
+    const r=parseInt(hex.substr(1,2),16);
+    const g=parseInt(hex.substr(3,2),16);
+    const b=parseInt(hex.substr(5,2),16);
+
+    return `rgb(${r*f},${g*f},${b*f})`;
+}
+
     // ── Icon: Synth ──────────────────────────────────────────────────────────
     function drawSynthIcon(ctx, S) {
 
@@ -882,6 +1042,7 @@
       { id: 'bukovki', draw: drawBukovkiIcon },
       { id: 'synth', draw: drawSynthIcon },
       { id: 'balls', draw: drawBallsIcon },
+      { id: 'rubic', draw: drawRubikIcon}
 
     ];
 
@@ -953,6 +1114,12 @@
         label: 'SHARI',
         icon: 'balls',
         url: 'balls.html',
+      },
+      {
+        hi: '#ff2f6e', lo: '#3d6bff',
+        label: 'rubic',
+        icon: 'rubic',
+        url: 'rubic.html',
       },
     ];
 

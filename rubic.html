@@ -1,0 +1,1715 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RUBIK // PROTOCOL</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+<script>
+(function () {
+
+    const colors = [
+        "#ff2f6e", // right
+        "#ff8c1a", // left
+        "#f2f2f5", // up
+        "#ffff33", // down
+        "#66ff33", // front
+        "#3d6bff"  // back
+    ];
+
+    const size = 64;
+    const padding = 4;
+    const gap = 3;
+
+    const cell = (size - padding * 2 - gap * 2) / 3;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = size;
+    canvas.height = size;
+
+    const ctx = canvas.getContext("2d");
+
+    // фон
+    ctx.fillStyle = "#111";
+    ctx.fillRect(0, 0, size, size);
+
+    for(let y = 0; y < 3; y++){
+
+        for(let x = 0; x < 3; x++){
+
+            const color = colors[Math.floor(Math.random() * colors.length)];
+
+            const px = padding + x * (cell + gap);
+            const py = padding + y * (cell + gap);
+
+            // тень
+            ctx.fillStyle = "#000";
+            roundRect(ctx, px + 1, py + 1, cell, cell, 2);
+            ctx.fill();
+
+            // квадратик
+            ctx.fillStyle = color;
+            roundRect(ctx, px, py, cell, cell, 2);
+            ctx.fill();
+        }
+    }
+
+    const link = document.createElement("link");
+    link.rel = "icon";
+    link.type = "image/png";
+    link.href = canvas.toDataURL("image/png");
+
+    document.head.appendChild(link);
+
+    function roundRect(ctx,x,y,w,h,r){
+
+        ctx.beginPath();
+
+        ctx.moveTo(x+r,y);
+        ctx.arcTo(x+w,y,x+w,y+h,r);
+        ctx.arcTo(x+w,y+h,x,y+h,r);
+        ctx.arcTo(x,y+h,x,y,r);
+        ctx.arcTo(x,y,x+w,y,r);
+
+        ctx.closePath();
+    }
+
+})();
+</script>
+<style>
+  :root{
+    --bg: #0a0a0f;
+    --bg2: #101018;
+    --pink: #ff2f6e;
+    --cyan: #66FF33;
+    --yellow: #f5e64c;
+    --ink: #f2f2f5;
+    --muted: #7d7d90;
+    --line: rgba(242,242,245,0.12);
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{
+    background: var(--bg);
+    color: var(--ink);
+    font-family:'Rajdhani',sans-serif;
+    overflow:hidden;
+    position:relative;
+  }
+
+  /* ambient background */
+  .bg-grid{
+    position:fixed; inset:0;
+    background-image:
+      linear-gradient(var(--line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--line) 1px, transparent 1px);
+    background-size: 42px 42px;
+    -webkit-mask-image: radial-gradient(circle at 50% 45%, black 0%, transparent 72%);
+            mask-image: radial-gradient(circle at 50% 45%, black 0%, transparent 72%);
+    pointer-events:none;
+    z-index:0;
+  }
+  .bg-stripe{
+    position:fixed; top:0; bottom:0; width:220px;
+    background: linear-gradient(180deg, transparent, rgba(255,47,110,0.06), transparent);
+    transform: skewX(-12deg);
+    pointer-events:none; z-index:0;
+  }
+  .bg-stripe.s1{ left:-4%; }
+  .bg-stripe.s2{ right:-6%; background: linear-gradient(180deg, transparent, rgba(23,242,194,0.06), transparent);}
+  .scanlines{
+    position:fixed; inset:0; pointer-events:none; z-index:5; opacity:0.35;
+    background: repeating-linear-gradient(0deg, rgba(255,255,255,0.02) 0px, rgba(255,255,255,0.02) 1px, transparent 1px, transparent 3px);
+  }
+  .vignette{
+    position:fixed; inset:0; pointer-events:none; z-index:5;
+    box-shadow: inset 0 0 200px rgba(0,0,0,0.85);
+  }
+
+  #canvas-wrap{ position:fixed; inset:0; z-index:1; cursor:grab; }
+  #canvas-wrap.dragging{ cursor:grabbing; }
+
+  /* header */
+  header{
+    position:fixed; top:0; left:0; right:0; z-index:10;
+    display:flex; align-items:center; justify-content:space-between;
+    padding: 26px 40px 0 40px;
+    pointer-events:none;
+  }
+  .brand{
+    display:flex; align-items:center; gap:14px;
+  }
+  .brand .mark{
+    width:14px; height:14px; background: var(--pink);
+    clip-path: polygon(0 0, 100% 0, 100% 70%, 70% 100%, 0 100%);
+    box-shadow: 0 0 14px var(--pink);
+  }
+  .brand h1{
+    font-family:'Orbitron', sans-serif;
+    font-weight:900;
+    font-size: 20px;
+    letter-spacing: 3px;
+  }
+  .brand h1 span{ color: var(--pink); }
+  .brand small{
+    display:block;
+    font-size: 10px;
+    letter-spacing: 4px;
+    color: var(--muted);
+    font-weight:600;
+    margin-top:2px;
+  }
+  .status{
+    text-align:right;
+    font-family:'Orbitron',sans-serif;
+    font-size:11px;
+    letter-spacing:2px;
+    color: var(--muted);
+  }
+  .status b{
+    display:block;
+    color: var(--cyan);
+    font-size:22px;
+    letter-spacing:1px;
+    margin-top:4px;
+  }
+
+  /* HUD corner frame */
+  .frame-corner{
+    position:fixed; z-index:9; width:52px; height:52px; pointer-events:none;
+    border-color: var(--line);
+  }
+  .frame-corner.tl{ top:14px; left:14px; border-top:2px solid var(--pink); border-left:2px solid var(--pink); }
+  .frame-corner.br{ bottom:14px; right:14px; border-bottom:2px solid var(--cyan); border-right:2px solid var(--cyan); }
+
+  /* bottom control bar */
+  .controls{
+    position:fixed; left:50%; bottom:34px; transform:translateX(-50%);
+    z-index:10;
+    display:flex; align-items:center; gap:16px;
+  }
+  .btn{
+    position:relative;
+    font-family:'Orbitron',sans-serif;
+    font-weight:800;
+    font-size:13px;
+    letter-spacing:3.5px;
+    text-transform:uppercase;
+    color: var(--ink);
+    background: rgba(16,16,24,0.7);
+    border: 1px solid var(--line);
+    padding: 15px 28px;
+    clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);
+    backdrop-filter: blur(6px);
+    cursor:pointer;
+    display:flex; align-items:center; gap:11px;
+    transition: color .18s ease, border-color .18s ease, transform .12s ease;
+    overflow:hidden;
+  }
+  .btn .tag{
+    font-size:10px;
+    font-weight:600;
+    letter-spacing:1px;
+    color: var(--accent, var(--pink));
+    opacity:.85;
+    transition: color .18s ease;
+  }
+  .btn:hover .tag{ color:#0a0a0f; }
+  .btn::before{
+    content:"";
+    position:absolute; inset:0;
+    background: var(--accent, var(--pink));
+    transform: translateX(-102%);
+    transition: transform .22s cubic-bezier(.7,0,.2,1);
+    z-index:-1;
+  }
+  .btn:hover{ color:#0a0a0f; border-color: var(--accent, var(--pink)); }
+  .btn:hover::before{ transform: translateX(0); }
+  .btn:active{ transform: scale(.96); }
+  .btn.scramble{ --accent: var(--pink); }
+  .btn.reset{ --accent: var(--cyan); }
+  .btn:disabled{ opacity:.35; pointer-events:none; }
+
+  /* keyboard legend */
+  .legend{
+    position:fixed; top:98px; right:40px; z-index:10;
+    background: rgba(14,14,20,0.55);
+    border: 1px solid var(--line);
+    padding: 11px 13px;
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 12px 100%, 0 calc(100% - 12px));
+    backdrop-filter: blur(6px);
+    min-width:148px;
+    opacity:0; transform: translateY(-8px) scale(.97);
+    pointer-events:none;
+    transition: opacity .22s ease, transform .22s ease;
+  }
+  .legend.open{
+    opacity:1; transform: translateY(0) scale(1);
+    pointer-events:auto;
+  }
+  .legend-head{
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:6px;
+  }
+  .legend h4{
+    font-family:'Orbitron',sans-serif; font-size:9px; letter-spacing:2.5px;
+    color: var(--yellow); margin-bottom:0;
+  }
+  .legend-close{
+    background:none; border:none; color: var(--muted);
+    font-size:15px; line-height:1; cursor:pointer; padding:0 0 0 8px;
+    transition: color .18s ease;
+  }
+  .legend-close:hover{ color: var(--pink); }
+  .legend .row{
+    display:flex; justify-content:space-between; align-items:center;
+    gap:8px;
+    font-size:11.5px; padding:1.5px 0; color: var(--muted);
+  }
+  .legend .row span.k{
+    font-family:'Orbitron',sans-serif;
+    color: var(--ink);
+    background: rgba(255,255,255,0.06);
+    border:1px solid var(--line);
+    border-radius:3px;
+    padding:0px 6px;
+    font-size:10px;
+    min-width:16px;
+    text-align:center;
+    flex-shrink:0;
+  }
+  .legend .hint{
+    margin-top:7px; padding-top:7px; border-top:1px solid var(--line);
+    font-size:10px; line-height:1.4; color:var(--muted);
+  }
+
+  .toggle-legend{
+    position:fixed; top:98px; right:40px; z-index:11;
+    width:38px; height:38px;
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Orbitron',sans-serif; font-weight:800; font-size:15px;
+    color: var(--ink);
+    background: rgba(14,14,20,0.55);
+    border: 1px solid var(--line);
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 10px 100%, 0 calc(100% - 10px));
+    backdrop-filter: blur(6px);
+    cursor:pointer;
+    transition: color .18s ease, border-color .18s ease, opacity .18s ease;
+  }
+  .toggle-legend:hover{ color: var(--yellow); border-color: var(--yellow); }
+  .toggle-legend.hidden{ opacity:0; pointer-events:none; }
+
+  .model-switch{
+    position:fixed; top:50%; left:32px; transform:translateY(-50%);
+    z-index:10; display:flex; flex-direction:column; gap:12px;
+  }
+  .model-btn{
+    font-family:'Orbitron',sans-serif; font-weight:800; font-size:11px;
+    letter-spacing:2.5px; text-transform:uppercase; color: var(--muted);
+    background: rgba(16,16,24,0.7); border:1px solid var(--line);
+    padding: 14px 18px; cursor:pointer; text-align:left;
+    clip-path: polygon(0 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%);
+    backdrop-filter: blur(6px);
+    transition: color .18s ease, border-color .18s ease, background .18s ease;
+  }
+  .model-btn small{ display:block; font-size:9px; letter-spacing:2px; color:var(--muted); margin-top:3px; font-weight:600;}
+  .model-btn.active{ color: var(--ink); border-color: var(--yellow); }
+  .model-btn.active small{ color: var(--yellow); }
+  .model-btn:hover{ color: var(--ink); border-color: var(--yellow); }
+  .model-btn{ display:flex; align-items:center; justify-content:center; width:56px; height:56px; padding:0; }
+  .model-icon{ width:32px; height:32px; }
+  .model-icon rect, .model-icon line, .model-icon polygon{
+    fill:none; stroke: currentColor; stroke-width:1.6; vector-effect: non-scaling-stroke;
+  }
+  #canvas-wrap.model-transition{ pointer-events:none; }
+
+  @media (max-width: 720px){
+    .model-switch{ left:12px; gap:8px; }
+    .model-btn{ width:44px; height:44px; }
+    .model-icon{ width:26px; height:26px; }
+    header{ padding:18px 18px 0 18px; }
+    .brand h1{ font-size:15px; }
+    .legend{ min-width:160px; right:18px; top:82px; }
+    .toggle-legend{ right:18px; top:82px; }
+    .controls{ bottom:20px; gap:10px; }
+    .btn{ padding:12px 16px; font-size:11px; letter-spacing:1.5px; }
+  }
+
+  .flash-msg{
+    position:fixed; top:50%; left:50%; transform:translate(-50%,-50%) scale(.9);
+    z-index:20; font-family:'Orbitron',sans-serif; font-weight:900;
+    font-size:48px; letter-spacing:6px; color: var(--cyan);
+    text-shadow: 0 0 24px rgba(23,242,194,0.7);
+    opacity:0; pointer-events:none;
+    transition: opacity .25s ease, transform .25s ease;
+  }
+  .flash-msg.show{ opacity:1; transform:translate(-50%,-50%) scale(1); }
+</style>
+</head>
+<body>
+
+<div class="bg-grid"></div>
+<div class="bg-stripe s1"></div>
+<div class="bg-stripe s2"></div>
+<div class="scanlines"></div>
+<div class="vignette"></div>
+<div class="frame-corner tl"></div>
+<div class="frame-corner br"></div>
+
+<header>
+  <div class="brand">
+    <div class="mark"></div>
+    <div>
+      <h1>RUBIK <span>//</span> PROTOCOL</h1>
+      <small>ROTATION ENGINE ACTIVE</small>
+    </div>
+  </div>
+  <div class="status">
+    MOVES
+    <b id="moveCount">000</b>
+  </div>
+</header>
+
+<button class="toggle-legend" id="legendToggle" aria-label="Показать бинды">?</button>
+
+<div class="legend" id="legend">
+  <div class="legend-head">
+    <h4>KEY BINDINGS</h4>
+    <button class="legend-close" id="legendClose" aria-label="Скрыть">×</button>
+  </div>
+  <div class="row"><span>Верх</span><span class="k">W</span></div>
+  <div class="row"><span>Лево</span><span class="k">A</span></div>
+  <div class="row"><span>Низ</span><span class="k">S</span></div>
+  <div class="row"><span>Право</span><span class="k">D</span></div>
+  <div class="row"><span>Перёд</span><span class="k">F</span></div>
+  <div class="row"><span>Зад</span><span class="k">Q</span></div>
+  <div class="hint">SHIFT — против часовой.<br>Стрелки — обзор на 90°.<br>Мышь по фону — вращать обзор.<br>Мышь по грани — крутить слой.<br><br><b>Скьюб:</b> Q/W/A/S — 4 угла.</div>
+</div>
+
+<div class="model-switch">
+  <button class="model-btn active" id="modelCubeBtn" aria-label="Кубик 3×3">
+    <svg viewBox="0 0 40 40" class="model-icon"><rect x="4" y="4" width="32" height="32"/><line x1="4" y1="14.66" x2="36" y2="14.66"/><line x1="4" y1="25.33" x2="36" y2="25.33"/><line x1="14.66" y1="4" x2="14.66" y2="36"/><line x1="25.33" y1="4" x2="25.33" y2="36"/></svg>
+  </button>
+  <button class="model-btn" id="modelSkewbBtn" aria-label="Скьюб">
+    <svg viewBox="0 0 40 40" class="model-icon"><rect x="4" y="4" width="32" height="32"/><polygon points="20,4 36,20 20,36 4,20"/></svg>
+  </button>
+</div>
+
+<div id="canvas-wrap"></div>
+
+<div class="flash-msg" id="flashMsg">SOLVED</div>
+
+<div class="controls">
+  <button class="btn scramble" id="scrambleBtn"><span class="tag">//01</span>Замешать</button>
+  <button class="btn reset" id="resetBtn"><span class="tag">//02</span>Собрать</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+  "use strict";
+
+  // ---------- SCENE SETUP ----------
+  const wrap = document.getElementById('canvas-wrap');
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(42, window.innerWidth/window.innerHeight, 0.1, 100);
+  const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setClearColor(0x000000, 0);
+  wrap.appendChild(renderer.domElement);
+
+  // ==========================================================================
+  //  LIGHTING TUNING — edit these to adjust how punchy/washed-out the scene
+  //  looks. Lower rim intensities and higher ambient = colors read more
+  //  clearly and truer to their actual hue; higher rim/key = more dramatic
+  //  but can wash out or tint the piece colors.
+  // ==========================================================================
+  const LIGHT_TUNE = {
+    ambient: 0.8,        // flat, non-directional fill light (raises overall visibility, kills harsh shadows)
+    keyIntensity: 0.3,   // main directional light strength (kept low now that the front light does most of the work)
+    rim1Intensity: 0.45, // pink accent point light strength
+    rim2Intensity: 0.4,  // cyan accent point light strength
+    frontIntensity: 0.15,// headlight that always shines from the viewer's position, so color reads stay consistent as the view turns
+  };
+  scene.add(new THREE.AmbientLight(0xffffff, LIGHT_TUNE.ambient));
+  const key = new THREE.DirectionalLight(0xffffff, LIGHT_TUNE.keyIntensity);
+  key.position.set(6,10,8);
+  scene.add(key);
+  const rim1 = new THREE.PointLight(0xff2f6e, LIGHT_TUNE.rim1Intensity, 30);
+  rim1.position.set(-8,-4,6);
+  scene.add(rim1);
+  const rim2 = new THREE.PointLight(0x17f2c2, LIGHT_TUNE.rim2Intensity, 30);
+  rim2.position.set(8,6,-6);
+  scene.add(rim2);
+  // Headlight: a directional light whose position is kept in sync with the
+  // camera every frame (see updateCamera below), always aimed at the cube's
+  // center (its target sits at the untransformed world origin, which is
+  // where it defaults). Because it always comes from "where the viewer is
+  // looking from", the faces currently on screen are lit the same way no
+  // matter how the model has been turned, instead of some faces catching
+  // the fixed top-down key light while others fall into shadow and read
+  // as a different/merged color.
+  const frontLight = new THREE.DirectionalLight(0xffffff, LIGHT_TUNE.frontIntensity);
+  scene.add(frontLight);
+
+  // orbit (quaternion-based, so "vertical" turns are relative to the
+  // current view, not to a fixed world axis)
+  //
+  // BASE_BACK/BASE_UP describe the resting "3/4 view" as two fixed,
+  // orthogonal unit vectors: BASE_BACK points from the cube out to the
+  // camera, BASE_UP is screen-up at that resting pose. Every subsequent
+  // view change is expressed as a rotation quaternion `orient` applied on
+  // top of these two vectors — never as an independent angle — so "right"
+  // can always be *derived* as cross(up, back) and the basis stays
+  // orthonormal and gimbal-free no matter how much the view has turned.
+  const THETA_BASE = Math.PI/6;     // 30° yaw — front-dominant, not an even 45/45 split
+  const PHI_BASE = Math.PI/3.1;     // ~58° pitch from straight overhead
+  const BASE_BACK = new THREE.Vector3(
+    Math.sin(PHI_BASE)*Math.sin(THETA_BASE),
+    Math.cos(PHI_BASE),
+    Math.sin(PHI_BASE)*Math.cos(THETA_BASE)
+  ).normalize();
+  const BASE_UP = new THREE.Vector3(
+    -Math.cos(PHI_BASE)*Math.sin(THETA_BASE),
+    Math.sin(PHI_BASE),
+    -Math.cos(PHI_BASE)*Math.cos(THETA_BASE)
+  ).normalize();
+  const orbit = { radius: 10 };
+  let orient = new THREE.Quaternion(); // accumulated view rotation, identity = resting 3/4 view
+
+  function currentBack(){ return BASE_BACK.clone().applyQuaternion(orient).normalize(); }
+  function currentUp(){ return BASE_UP.clone().applyQuaternion(orient).normalize(); }
+  function currentRight(){ return new THREE.Vector3().crossVectors(currentUp(), currentBack()).normalize(); }
+
+  function updateCamera(){
+    const back = currentBack();
+    const up = currentUp();
+    const right = new THREE.Vector3().crossVectors(up, back).normalize();
+    camera.position.copy(back.clone().multiplyScalar(orbit.radius));
+    const m = new THREE.Matrix4().makeBasis(right, up, back);
+    camera.quaternion.setFromRotationMatrix(m);
+    frontLight.position.copy(camera.position);
+  }
+  updateCamera();
+
+  window.addEventListener('resize', ()=>{
+    camera.aspect = window.innerWidth/window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+
+  // ---------- CUBE BUILD ----------
+  const SPACING = 1.03;
+  const CUBIE = 0.96;
+  const group3 = new THREE.Group();
+  scene.add(group3);
+
+  // ==========================================================================
+  //  MODEL COLOR PALETTE — edit these hex values to change the sticker
+  //  colors on both the 3x3 cube and the skewb.
+  // ==========================================================================
+  const COLORS = {
+    right: 0xff2f6e, // +x
+    left:  0xff8c1a, // -x
+    up:    0xf2f2f5, // +y
+    down:  0xFFFF33, // -y
+    front: 0x66FF33, // +z
+    back:  0x3d6bff  // -z
+  };
+  const INNER = 0x121218; // hidden/internal faces, never visible during normal play
+
+  // ==========================================================================
+  //  MATERIAL FINISH TUNING — higher roughness / lower metalness makes
+  //  colors read truer under the rim lights (less washed-out specular glare).
+  // ==========================================================================
+  const MATERIAL_TUNE = {
+    roughness: 0.5,
+    metalness: 0,
+  };
+
+  function makeMaterials(px,py,pz){
+    const m = (hex)=> new THREE.MeshStandardMaterial({ color: hex, roughness: MATERIAL_TUNE.roughness, metalness: MATERIAL_TUNE.metalness });
+    return [
+      m(px===1 ? COLORS.right : INNER),
+      m(px===-1? COLORS.left  : INNER),
+      m(py===1 ? COLORS.up    : INNER),
+      m(py===-1? COLORS.down  : INNER),
+      m(pz===1 ? COLORS.front : INNER),
+      m(pz===-1? COLORS.back  : INNER),
+    ];
+  }
+
+  // rounded box geometry: subdivide a box, then push corner/edge vertices
+  // outward along the sphere direction so corners become smoothly rounded.
+  function createRoundedBoxGeometry(size, radius, segments){
+    const g = new THREE.BoxGeometry(size, size, size, segments, segments, segments);
+    const pos = g.attributes.position;
+    const half = size/2 - radius;
+    const v = new THREE.Vector3();
+    for(let i=0;i<pos.count;i++){
+      v.fromBufferAttribute(pos, i);
+      const cx = THREE.MathUtils.clamp(v.x, -half, half);
+      const cy = THREE.MathUtils.clamp(v.y, -half, half);
+      const cz = THREE.MathUtils.clamp(v.z, -half, half);
+      const dir = new THREE.Vector3(v.x-cx, v.y-cy, v.z-cz);
+      if(dir.lengthSq() > 1e-10){
+        dir.normalize().multiplyScalar(radius);
+        v.set(cx+dir.x, cy+dir.y, cz+dir.z);
+      } else {
+        v.set(cx, cy, cz);
+      }
+      pos.setXYZ(i, v.x, v.y, v.z);
+    }
+    g.computeVertexNormals();
+    return g;
+  }
+
+  const geo = createRoundedBoxGeometry(CUBIE, 0.11, 4);
+  const edgesGeo = new THREE.EdgesGeometry(geo, 20);
+
+  const cubelets = [];
+  for(let x=-1;x<=1;x++){
+    for(let y=-1;y<=1;y++){
+      for(let z=-1;z<=1;z++){
+        if(x===0 && y===0 && z===0) continue;
+        const mats = makeMaterials(x,y,z);
+        const mesh = new THREE.Mesh(geo, mats);
+        const wire = new THREE.LineSegments(edgesGeo, new THREE.LineBasicMaterial({ color: 0x000000, transparent:true, opacity:0.55 }));
+        mesh.add(wire);
+        mesh.position.set(x*SPACING, y*SPACING, z*SPACING);
+        mesh.userData.gridPos = {x,y,z};
+        mesh.userData.originalPosition = mesh.position.clone();
+        mesh.userData.originalQuaternion = mesh.quaternion.clone();
+        group3.add(mesh);
+        cubelets.push(mesh);
+      }
+    }
+  }
+
+  // ---------- SKEWB BUILD ----------
+  // Simplified skewb: 8 corner cubies (all coords ±1) + 6 center cubies
+  // (exactly one nonzero coord ±1), reusing the same rounded-box geometry
+  // and per-face coloring scheme as the 3x3. Turns are 120° rotations
+  // around a body-diagonal axis through a chosen corner; the moving group
+  // for that corner is the corner itself plus the 3 centers that sit on
+  // its three adjacent faces — everything else stays put. Since a 120°
+  // spin around (±1,±1,±1) cyclically permutes the x/y/z axes, corner and
+  // center grid positions always map onto other valid corner/center
+  // positions, so the same round-to-grid snapping used elsewhere works here.
+  const group2 = new THREE.Group();
+  group2.visible = false;
+  scene.add(group2);
+  const cubelets2 = [];
+
+  // Separate enlarge factors for corners vs centers: pieces are scaled
+  // past their exact 1/2-cube-edge bounding box so neighboring pieces
+  // nearly touch instead of leaving flat gaps between them. Centers need
+  // a much bigger boost than corners to close the visible seams.
+  // ==========================================================================
+  //  SKEWB APPEARANCE TUNING — edit these to adjust piece size/spacing freely.
+  //  Values are multipliers, tuned relative to CUBIE (the base cubie size).
+  // ==========================================================================
+  const SKEWB_TUNE = {
+    // How far apart piece centers sit (smaller = tighter grid, more overlap risk).
+    // 1.0 would match the exact geometric spacing of a real skewb; go lower
+    // to compress it, higher to open it back up if pieces start clipping.
+    spacing: SPACING * 0.72,
+
+    // Outward offset of the corner tetrahedron's colored faces, as a
+    // multiple of CUBIE/2. Bigger = bigger corner pieces.
+    cornerReach: 1.30,
+
+    // How far the corner's base cuts back from its outward apex (0-1).
+    // Bigger = fuller/rounder-looking triangular faces.
+    cornerBaseCut: 1,
+
+    // Outward offset of the center diamond's colored face. Keep this equal
+    // to cornerReach so corners and centers sit flush on the same plane
+    // (mismatched values make one look "sunken" relative to the other).
+    centerReach: 1.30,
+
+    // Half-diagonal of the center diamond, as a multiple of centerReach.
+    // Bigger = bigger diamond faces (closes gaps to neighboring corners).
+    centerDiamondSize: 2.1,
+
+    // How far the center pyramid's hidden apex tapers inward, as a
+    // multiple of centerReach.
+    centerDepth: 2,
+  };
+  const SKEWB_SPACING = SKEWB_TUNE.spacing;
+
+  // Corner piece: a tetrahedron with its apex at the cube's outer corner
+  // and its 3 outward faces lying flush in the cube's own face planes
+  // (so they read as flat colored triangles, like a real Skewb corner),
+  // plus one hidden inner face closing the shape.
+  function buildSkewbCornerGeometry(sx, sy, sz){
+    const h = (CUBIE/2) * SKEWB_TUNE.cornerReach;
+    const f = SKEWB_TUNE.cornerBaseCut; // how far the base cuts back from the apex along each edge
+    const apex = new THREE.Vector3(sx*h, sy*h, sz*h);
+    const Bx = new THREE.Vector3(sx*h*(1-2*f), sy*h, sz*h);
+    const By = new THREE.Vector3(sx*h, sy*h*(1-2*f), sz*h);
+    const Bz = new THREE.Vector3(sx*h, sy*h, sz*h*(1-2*f));
+    // faces: (apex,Bx,By) flat at z=sz*h -> "z" face; (apex,By,Bz) flat at x=sx*h -> "x" face;
+    // (apex,Bx,Bz) flat at y=sy*h -> "y" face; (Bx,By,Bz) -> hidden inner face.
+    const verts = [
+      apex, Bx, By,
+      apex, By, Bz,
+      apex, Bx, Bz,
+      Bx, By, Bz
+    ];
+    const positions = new Float32Array(verts.length*3);
+    verts.forEach((v,i)=>{ positions[i*3]=v.x; positions[i*3+1]=v.y; positions[i*3+2]=v.z; });
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    g.addGroup(0,3,0); // z-plane face -> material 0
+    g.addGroup(3,3,1); // x-plane face -> material 1
+    g.addGroup(6,3,2); // y-plane face -> material 2
+    g.addGroup(9,3,3); // inner hidden face -> material 3
+    g.computeVertexNormals();
+    return g;
+  }
+  function makeCornerMaterials(sx, sy, sz){
+    const m = (hex)=> new THREE.MeshStandardMaterial({ color: hex, roughness: MATERIAL_TUNE.roughness, metalness: MATERIAL_TUNE.metalness, side: THREE.DoubleSide });
+    return [
+      m(sz===1 ? COLORS.front : COLORS.back),
+      m(sx===1 ? COLORS.right : COLORS.left),
+      m(sy===1 ? COLORS.up : COLORS.down),
+      m(INNER)
+    ];
+  }
+
+  // Center piece: a square pyramid whose flush, OUTWARD-facing base is
+  // rotated 45° in its own plane -- so its silhouette reads as a rhombus
+  // (diamond) rather than an axis-aligned square, matching a real Skewb
+  // center -- and whose apex tapers inward to the cube's core (hidden).
+  // Built explicitly per-axis (rather than via a shared/rotated primitive)
+  // so the colored face and its material index can never get mismatched.
+  function buildSkewbCenterGeometry(px, py, pz){
+    const h = (CUBIE/2) * SKEWB_TUNE.centerReach;
+    const s = h * SKEWB_TUNE.centerDiamondSize; // half-diagonal of the diamond
+    const depth = h * SKEWB_TUNE.centerDepth; // how far the hidden apex tapers inward
+    const outward = new THREE.Vector3(px, py, pz);
+    // two axes tangent to the face, used to place the 4 diamond corners
+    let u, v;
+    if(px !== 0){ u = new THREE.Vector3(0,1,0); v = new THREE.Vector3(0,0,1); }
+    else if(py !== 0){ u = new THREE.Vector3(0,0,1); v = new THREE.Vector3(1,0,0); }
+    else { u = new THREE.Vector3(1,0,0); v = new THREE.Vector3(0,1,0); }
+
+    const base = outward.clone().multiplyScalar(h);
+    const P1 = base.clone().addScaledVector(u, s);
+    const P2 = base.clone().addScaledVector(v, s);
+    const P3 = base.clone().addScaledVector(u, -s);
+    const P4 = base.clone().addScaledVector(v, -s);
+    const A = outward.clone().multiplyScalar(h - depth); // inward apex, hidden
+
+    const verts = [
+      // base diamond (colored, flush with the cube face)
+      P1, P2, P3,
+      P1, P3, P4,
+      // 4 hidden inward-tapering side faces
+      A, P1, P2,
+      A, P2, P3,
+      A, P3, P4,
+      A, P4, P1
+    ];
+    const positions = new Float32Array(verts.length*3);
+    verts.forEach((pt,i)=>{ positions[i*3]=pt.x; positions[i*3+1]=pt.y; positions[i*3+2]=pt.z; });
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    g.addGroup(0,6,0);  // base diamond -> material 0 (colored)
+    g.addGroup(6,12,1); // side faces -> material 1 (inner)
+    g.computeVertexNormals();
+    return g;
+  }
+  function makeCenterMaterials(px, py, pz){
+    const color = px===1?COLORS.right : px===-1?COLORS.left
+                : py===1?COLORS.up    : py===-1?COLORS.down
+                : pz===1?COLORS.front : COLORS.back;
+    const face = new THREE.MeshStandardMaterial({ color, roughness: MATERIAL_TUNE.roughness, metalness: MATERIAL_TUNE.metalness, side: THREE.DoubleSide });
+    const inner = new THREE.MeshStandardMaterial({ color: INNER, roughness: MATERIAL_TUNE.roughness, metalness: MATERIAL_TUNE.metalness, side: THREE.DoubleSide });
+    return [face, inner]; // group 0 = colored base diamond, group 1 = hidden sides
+  }
+
+  (function buildSkewb(){
+    // 8 corners
+    for(let x=-1;x<=1;x+=2) for(let y=-1;y<=1;y+=2) for(let z=-1;z<=1;z+=2){
+      const g = buildSkewbCornerGeometry(x,y,z);
+      const mats = makeCornerMaterials(x,y,z);
+      const mesh = new THREE.Mesh(g, mats);
+      const wire = new THREE.LineSegments(new THREE.EdgesGeometry(g, 20), new THREE.LineBasicMaterial({ color: 0x000000, transparent:true, opacity:0.55 }));
+      mesh.add(wire);
+      mesh.position.set(x*SKEWB_SPACING, y*SKEWB_SPACING, z*SKEWB_SPACING);
+      mesh.userData.gridPos = {x,y,z};
+      mesh.userData.originalPosition = mesh.position.clone();
+      mesh.userData.originalQuaternion = mesh.quaternion.clone();
+      group2.add(mesh);
+      cubelets2.push(mesh);
+    }
+    // 6 centers
+    const centerPts = [[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]];
+    centerPts.forEach(([x,y,z])=>{
+      const g = buildSkewbCenterGeometry(x,y,z);
+      const mats = makeCenterMaterials(x,y,z);
+      const mesh = new THREE.Mesh(g, mats);
+      const wire = new THREE.LineSegments(new THREE.EdgesGeometry(g, 20), new THREE.LineBasicMaterial({ color: 0x000000, transparent:true, opacity:0.55 }));
+      mesh.add(wire);
+      mesh.position.set(x*SKEWB_SPACING, y*SKEWB_SPACING, z*SKEWB_SPACING);
+      mesh.userData.gridPos = {x,y,z};
+      mesh.userData.originalPosition = mesh.position.clone();
+      mesh.userData.originalQuaternion = mesh.quaternion.clone();
+      group2.add(mesh);
+      cubelets2.push(mesh);
+    });
+  })();
+
+  function gridPosOf2(c){
+    return {
+      x: Math.round(c.position.x / SKEWB_SPACING),
+      y: Math.round(c.position.y / SKEWB_SPACING),
+      z: Math.round(c.position.z / SKEWB_SPACING)
+    };
+  }
+
+  function rotateSkewb(corner, dir, opts){
+    opts = opts || {};
+    if(isAnimating){
+      moveQueue.push({ kind:'skewb', corner, dir, opts });
+      return;
+    }
+    const sx = corner.x, sy = corner.y, sz = corner.z;
+    const affected = cubelets2.filter(c=>{
+      const g = gridPosOf2(c);
+      const isCorner = g.x!==0 && g.y!==0 && g.z!==0;
+      if(isCorner){
+        // pivot corner (all 3 signs match) or one of the 3 corners
+        // adjacent to it along a cube edge (exactly 2 signs match) —
+        // together these 4 corners plus the 3 aligned centers below form
+        // the 7-piece "hemisphere" that a real Skewb turn rotates.
+        const matches = (g.x===sx?1:0) + (g.y===sy?1:0) + (g.z===sz?1:0);
+        return matches >= 2;
+      }
+      // centers on the same hemisphere: aligned with one of the axis signs
+      if(g.x===sx && g.y===0 && g.z===0) return true;
+      if(g.x===0 && g.y===sy && g.z===0) return true;
+      if(g.x===0 && g.y===0 && g.z===sz) return true;
+      return false;
+    });
+    if(affected.length===0){ if(opts.onDone) opts.onDone(); return; }
+    isAnimating = true;
+    playClick();
+    const duration = opts.duration || 260;
+    const axisVec = new THREE.Vector3(sx,sy,sz).normalize();
+    const targetAngle = dir * (2*Math.PI/3);
+    const startPos = affected.map(c=>c.position.clone());
+    const startQuat = affected.map(c=>c.quaternion.clone());
+    const start = performance.now();
+    const q = new THREE.Quaternion();
+    function step(now){
+      const t = Math.min((now-start)/duration, 1);
+      const eased = t<0.5 ? 2*t*t : 1-Math.pow(-2*t+2,2)/2;
+      q.setFromAxisAngle(axisVec, eased*targetAngle);
+      for(let i=0;i<affected.length;i++){
+        const c = affected[i];
+        c.position.copy(startPos[i]).applyQuaternion(q);
+        c.quaternion.multiplyQuaternions(q, startQuat[i]);
+      }
+      if(t<1){
+        requestAnimationFrame(step);
+      } else {
+        affected.forEach(c=>{
+          c.position.x = Math.round(c.position.x/SKEWB_SPACING)*SKEWB_SPACING;
+          c.position.y = Math.round(c.position.y/SKEWB_SPACING)*SKEWB_SPACING;
+          c.position.z = Math.round(c.position.z/SKEWB_SPACING)*SKEWB_SPACING;
+          snapRotation(c);
+        });
+        isAnimating = false;
+        if(!opts.silent) bumpCount();
+        if(opts.onDone) opts.onDone();
+        drainMoveQueue();
+      }
+    }
+    requestAnimationFrame(step);
+  }
+
+  const SKEWB_CORNERS = [];
+  for(let x=-1;x<=1;x+=2) for(let y=-1;y<=1;y+=2) for(let z=-1;z<=1;z+=2) SKEWB_CORNERS.push({x,y,z});
+  // dynamic skewb key->corner mapping is computed at key-press time from
+  // the current view, see currentSkewbKeyCorners() below (defined after
+  // roundToWorldAxis/currentUp/currentRight/currentBack exist).
+
+  function scrambleSkewb(){
+    if(isAnimating && moveQueue.length) return;
+    setControlsEnabled(false);
+    const n = 18;
+    let queued = 0;
+    for(let i=0;i<n;i++){
+      const c = SKEWB_CORNERS[Math.floor(Math.random()*SKEWB_CORNERS.length)];
+      const dir = Math.random()<0.5 ? 1 : -1;
+      queued++;
+      rotateSkewb(c, dir, {
+        duration: 150, silent:true,
+        onDone: ()=>{ queued--; if(queued===0) setControlsEnabled(true); }
+      });
+    }
+  }
+
+  function resetSkewb(){
+    setControlsEnabled(false);
+    moveQueue.length = 0;
+    const duration = 650;
+    const start = performance.now();
+    const startState = cubelets2.map(c => ({
+      pos: c.position.clone(), quat: c.quaternion.clone(), delay: Math.random()*140
+    }));
+    isAnimating = true;
+    function step(now){
+      let allDone = true;
+      cubelets2.forEach((c,i)=>{
+        const s = startState[i];
+        const t = Math.min(Math.max((now-start-s.delay)/duration,0),1);
+        if(t<1) allDone = false;
+        const eased = t<0.5 ? 4*t*t*t : 1-Math.pow(-2*t+2,3)/2;
+        c.position.lerpVectors(s.pos, c.userData.originalPosition, eased);
+        c.quaternion.slerpQuaternions(s.quat, c.userData.originalQuaternion, eased);
+      });
+      if(!allDone){
+        requestAnimationFrame(step);
+      } else {
+        cubelets2.forEach(c=>{
+          c.position.copy(c.userData.originalPosition);
+          c.quaternion.copy(c.userData.originalQuaternion);
+        });
+        isAnimating = false;
+        moveCount = 0;
+        moveCountEl.textContent = '000';
+        setControlsEnabled(true);
+        flashMessage('SOLVED');
+      }
+    }
+    requestAnimationFrame(step);
+  }
+
+  // ---------- SOUND ENGINE ----------
+  // Lightweight synthesized SFX via WebAudio (no external assets):
+  // a soft click on every face/layer/skewb turn, and a brief wind whoosh
+  // whenever the whole model spins (arrow-key view turns). Audio context
+  // is created lazily on first user gesture to satisfy autoplay policies.
+  let actx = null;
+  function getAudioCtx(){
+    if(!actx){
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if(AC) actx = new AC();
+    }
+    if(actx && actx.state === 'suspended') actx.resume();
+    return actx;
+  }
+  function playClick(){
+    const ctx = getAudioCtx();
+    if(!ctx) return;
+    const now = ctx.currentTime;
+
+    // short filtered-noise transient = the "clack" of two plastic parts meeting
+    const dur = 0.1;
+    const bufferSize = Math.floor(ctx.sampleRate * dur);
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for(let i=0;i<bufferSize;i++){ data[i] = (Math.random()*2-1) * (1 - i/bufferSize); }
+    const noise = ctx.createBufferSource();
+    noise.buffer = buffer;
+    const noiseFilter = ctx.createBiquadFilter();
+    noiseFilter.type = 'highpass';
+    noiseFilter.frequency.setValueAtTime(2200, now);
+    const noiseGain = ctx.createGain();
+    noiseGain.gain.setValueAtTime(0.22, now);
+    noiseGain.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+    noise.connect(noiseFilter);
+    noiseFilter.connect(noiseGain);
+    noiseGain.connect(ctx.destination);
+    noise.start(now);
+    noise.stop(now + dur);
+
+    // low, damped thump underneath = the mechanism's internal "thud"
+    const osc = ctx.createOscillator();
+    const oscGain = ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(180, now);
+    osc.frequency.exponentialRampToValueAtTime(95, now + 0.05);
+    oscGain.gain.setValueAtTime(0.0001, now);
+    oscGain.gain.exponentialRampToValueAtTime(0.16, now + 0.004);
+    oscGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.06);
+    osc.connect(oscGain);
+    oscGain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.07);
+  }
+  function playWhoosh(){
+    const ctx = getAudioCtx();
+    if(!ctx) return;
+    const now = ctx.currentTime;
+    const dur = 0.32;
+    const bufferSize = Math.floor(ctx.sampleRate * dur);
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for(let i=0;i<bufferSize;i++){ data[i] = (Math.random()*2-1); }
+    const noise = ctx.createBufferSource();
+    noise.buffer = buffer;
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(500, now);
+    filter.frequency.linearRampToValueAtTime(1600, now + dur*0.55);
+    filter.frequency.linearRampToValueAtTime(300, now + dur);
+    filter.Q.value = 0.7;
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.linearRampToValueAtTime(0.032, now + dur*0.25);
+    gain.gain.linearRampToValueAtTime(0.0001, now + dur);
+    noise.connect(filter);
+    filter.connect(gain);
+    gain.connect(ctx.destination);
+    noise.start(now);
+    noise.stop(now + dur);
+  }
+
+  // ---------- ROTATION ENGINE ----------
+  let isAnimating = false;
+  const moveQueue = [];
+  let moveCount = 0;
+  const moveCountEl = document.getElementById('moveCount');
+  function bumpCount(){
+    moveCount++;
+    moveCountEl.textContent = String(moveCount).padStart(3,'0');
+  }
+
+  function gridPosOf(c){
+    return {
+      x: Math.round(c.position.x / SPACING),
+      y: Math.round(c.position.y / SPACING),
+      z: Math.round(c.position.z / SPACING)
+    };
+  }
+
+  function snapRotation(obj){
+    obj.updateMatrix();
+    const e = obj.matrix.elements;
+    const bx = new THREE.Vector3(e[0],e[1],e[2]);
+    const by = new THREE.Vector3(e[4],e[5],e[6]);
+    const bz = new THREE.Vector3(e[8],e[9],e[10]);
+    const r = v => new THREE.Vector3(Math.round(v.x),Math.round(v.y),Math.round(v.z));
+    const rb = new THREE.Matrix4().makeBasis(r(bx), r(by), r(bz));
+    obj.quaternion.setFromRotationMatrix(rb);
+  }
+
+  const AXIS_X = new THREE.Vector3(1,0,0);
+  const AXIS_Y = new THREE.Vector3(0,1,0);
+  const AXIS_Z = new THREE.Vector3(0,0,1);
+  function axisVecFor(axis){
+    return axis==='x' ? AXIS_X : axis==='y' ? AXIS_Y : AXIS_Z;
+  }
+
+  // Rotation is applied directly to each affected cubelet's position and
+  // quaternion (relative to the world origin, since every layer axis passes
+  // through the cube's center). No intermediate pivot/group re-parenting is
+  // used, which avoids the matrix drift and mid-frame attach() issues that
+  // previously caused pieces to clip through each other or vanish.
+  function rotateLayer(axis, layer, dir, opts){
+    opts = opts || {};
+    if(isAnimating){
+      moveQueue.push({ kind:'layer', axis, layer, dir, opts });
+      return;
+    }
+    const affected = cubelets.filter(c => gridPosOf(c)[axis] === layer);
+    if(affected.length === 0){
+      if(opts.onDone) opts.onDone();
+      return;
+    }
+    isAnimating = true;
+    playClick();
+    const duration = opts.duration || 220;
+    const axisVec = axisVecFor(axis);
+    const targetAngle = dir * (Math.PI/2);
+    const startPos = affected.map(c => c.position.clone());
+    const startQuat = affected.map(c => c.quaternion.clone());
+    const start = performance.now();
+    const q = new THREE.Quaternion();
+
+    function step(now){
+      const t = Math.min((now-start)/duration, 1);
+      // easeOutBack: overshoots slightly past the target angle then settles
+      // back, giving each turn a light bounce instead of a stiff stop.
+      const c1 = 1.25, c3 = c1 + 1;
+      const tm1 = t - 1;
+      const eased = 1 + c3*tm1*tm1*tm1 + c1*tm1*tm1;
+      q.setFromAxisAngle(axisVec, eased*targetAngle);
+      for(let i=0;i<affected.length;i++){
+        const c = affected[i];
+        c.position.copy(startPos[i]).applyQuaternion(q);
+        c.quaternion.multiplyQuaternions(q, startQuat[i]);
+      }
+
+      if(t < 1){
+        requestAnimationFrame(step);
+      } else {
+        affected.forEach(c=>{
+          c.position.x = Math.round(c.position.x/SPACING)*SPACING;
+          c.position.y = Math.round(c.position.y/SPACING)*SPACING;
+          c.position.z = Math.round(c.position.z/SPACING)*SPACING;
+          snapRotation(c);
+        });
+        isAnimating = false;
+        if(!opts.silent) bumpCount();
+        if(opts.onDone) opts.onDone();
+        drainMoveQueue();
+      }
+    }
+    requestAnimationFrame(step);
+  }
+
+  // Same engine as rotateLayer, but applied to every cubelet at once — this
+  // is exactly what the vertical arrow keys use, so tilting the view is
+  // literally the same kind of 90° turn as an L/R face move, just scaled up
+  // to the whole cube instead of one layer.
+  function spinWholeCube(axisVec, dir, opts){
+    opts = opts || {};
+    if(isAnimating){
+      moveQueue.push({ kind:'whole', axisVec, dir, opts });
+      return;
+    }
+    const list = activeModel === 'cube' ? cubelets : cubelets2;
+    const sp = activeModel === 'cube' ? SPACING : SKEWB_SPACING;
+    isAnimating = true;
+    playWhoosh();
+    const duration = opts.duration || 320;
+    const targetAngle = dir * (Math.PI/2);
+    const startPos = list.map(c => c.position.clone());
+    const startQuat = list.map(c => c.quaternion.clone());
+    const start = performance.now();
+    const q = new THREE.Quaternion();
+
+    function step(now){
+      const t = Math.min((now-start)/duration, 1);
+      const eased = t<0.5 ? 2*t*t : 1-Math.pow(-2*t+2,2)/2;
+      q.setFromAxisAngle(axisVec, eased*targetAngle);
+      for(let i=0;i<list.length;i++){
+        const c = list[i];
+        c.position.copy(startPos[i]).applyQuaternion(q);
+        c.quaternion.multiplyQuaternions(q, startQuat[i]);
+      }
+      if(t < 1){
+        requestAnimationFrame(step);
+      } else {
+        list.forEach(c=>{
+          c.position.x = Math.round(c.position.x/sp)*sp;
+          c.position.y = Math.round(c.position.y/sp)*sp;
+          c.position.z = Math.round(c.position.z/sp)*sp;
+          snapRotation(c);
+        });
+        isAnimating = false;
+        if(opts.onDone) opts.onDone();
+        drainMoveQueue();
+      }
+    }
+    requestAnimationFrame(step);
+  }
+
+  function drainMoveQueue(){
+    if(!moveQueue.length) return;
+    const n = moveQueue.shift();
+    if(n.kind === 'whole') spinWholeCube(n.axisVec, n.dir, n.opts);
+    else if(n.kind === 'skewb') rotateSkewb(n.corner, n.dir, n.opts);
+    else rotateLayer(n.axis, n.layer, n.dir, n.opts);
+  }
+
+  // Rounds an arbitrary direction to the nearest world axis (±X/±Y/±Z).
+  // Used so the whole-cube spin always turns around a true cube axis and
+  // stays perfectly aligned, even though the view itself sits at a slight
+  // diagonal (the resting 3/4 angle).
+  function roundToWorldAxis(v){
+    const candidates = [AXIS_X, AXIS_X.clone().negate(), AXIS_Y, AXIS_Y.clone().negate(), AXIS_Z, AXIS_Z.clone().negate()];
+    let best = candidates[0], bestDot = -Infinity;
+    candidates.forEach(c=>{ const d = c.dot(v); if(d > bestDot){ bestDot = d; best = c; } });
+    return best.clone();
+  }
+
+  // face-name -> {axis, layer, dir}  (dir = sign of rotation for a clockwise turn viewed from outside)
+  const FACE_MOVES = {
+    U: { axis:'y', layer: 1, dir:-1 },
+    D: { axis:'y', layer:-1, dir: 1 },
+    L: { axis:'x', layer:-1, dir: 1 },
+    R: { axis:'x', layer: 1, dir:-1 },
+    F: { axis:'z', layer: 1, dir:-1 },
+    B: { axis:'z', layer:-1, dir: 1 },
+  };
+
+  function doMove(face, inverse, opts){
+    const m = FACE_MOVES[face];
+    if(!m) return;
+    rotateLayer(m.axis, m.layer, inverse ? -m.dir : m.dir, opts);
+  }
+
+  // ---------- SCRAMBLE ----------
+  const FACES = Object.keys(FACE_MOVES);
+  function scramble(){
+    if(isAnimating && moveQueue.length) return;
+    setControlsEnabled(false);
+    const seqLen = 22;
+    let lastAxis = null;
+    let queued = 0;
+    for(let i=0;i<seqLen;i++){
+      let face;
+      do { face = FACES[Math.floor(Math.random()*FACES.length)]; }
+      while(FACE_MOVES[face].axis === lastAxis);
+      lastAxis = FACE_MOVES[face].axis;
+      const inv = Math.random() < 0.5;
+      queued++;
+      doMove(face, inv, {
+        duration: 130,
+        silent: true,
+        onDone: ()=>{
+          queued--;
+          if(queued===0) setControlsEnabled(true);
+        }
+      });
+    }
+  }
+
+  // ---------- RESET (solve) ----------
+  function resetCube(){
+    if(isAnimating) { /* let it flush */ }
+    setControlsEnabled(false);
+    moveQueue.length = 0;
+    const duration = 650;
+    const start = performance.now();
+    const startState = cubelets.map(c => ({
+      pos: c.position.clone(),
+      quat: c.quaternion.clone(),
+      delay: Math.random()*140
+    }));
+    isAnimating = true;
+
+    function step(now){
+      let allDone = true;
+      cubelets.forEach((c, i) => {
+        const s = startState[i];
+        const t = Math.min(Math.max((now - start - s.delay) / duration, 0), 1);
+        if(t < 1) allDone = false;
+        const eased = t<0.5 ? 4*t*t*t : 1-Math.pow(-2*t+2,3)/2;
+        c.position.lerpVectors(s.pos, c.userData.originalPosition, eased);
+        c.quaternion.slerpQuaternions(s.quat, c.userData.originalQuaternion, eased);
+        const lift = Math.sin(eased*Math.PI) * 0.35;
+        c.position.addScaledVector(new THREE.Vector3(
+          c.userData.gridPos.x, c.userData.gridPos.y, c.userData.gridPos.z
+        ).normalize(), lift*0.15);
+      });
+      if(!allDone){
+        requestAnimationFrame(step);
+      } else {
+        cubelets.forEach((c,i)=>{
+          c.position.copy(c.userData.originalPosition);
+          c.quaternion.copy(c.userData.originalQuaternion);
+        });
+        isAnimating = false;
+        moveCount = 0;
+        moveCountEl.textContent = '000';
+        setControlsEnabled(true);
+        flashMessage('SOLVED');
+      }
+    }
+    requestAnimationFrame(step);
+  }
+
+  function flashMessage(text){
+    const el = document.getElementById('flashMsg');
+    el.textContent = text;
+    el.classList.add('show');
+    setTimeout(()=> el.classList.remove('show'), 900);
+  }
+
+  // ---------- UI ----------
+  const scrambleBtn = document.getElementById('scrambleBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  function setControlsEnabled(v){
+    scrambleBtn.disabled = !v;
+    resetBtn.disabled = !v;
+  }
+  let activeModel = 'cube';
+  scrambleBtn.addEventListener('click', ()=> activeModel==='cube' ? scramble() : scrambleSkewb());
+  resetBtn.addEventListener('click', ()=> activeModel==='cube' ? resetCube() : resetSkewb());
+
+  function setModelOpacity(list, factor){
+    for(let i=0;i<list.length;i++){
+      const mesh = list[i];
+      const mats = mesh.material;
+      for(let j=0;j<mats.length;j++){
+        mats[j].transparent = true;
+        mats[j].opacity = factor;
+      }
+      const wire = mesh.children[0];
+      if(wire && wire.material){ wire.material.opacity = 0.55*factor; }
+    }
+  }
+
+  // ---------- MODEL SWITCH ----------
+  const modelCubeBtn = document.getElementById('modelCubeBtn');
+  const modelSkewbBtn = document.getElementById('modelSkewbBtn');
+  let modelTransitioning = false;
+  function setActiveModel(m){
+    if(isAnimating || modelTransitioning || m === activeModel) return;
+    modelTransitioning = true;
+    wrap.classList.add('model-transition');
+    const outGroup = activeModel === 'cube' ? group3 : group2;
+    const inGroup = m === 'cube' ? group3 : group2;
+    const outCubelets = outGroup === group3 ? cubelets : cubelets2;
+    const inCubelets = inGroup === group3 ? cubelets : cubelets2;
+    activeModel = m;
+    modelCubeBtn.classList.toggle('active', m==='cube');
+    modelSkewbBtn.classList.toggle('active', m==='skewb');
+    moveCount = 0;
+    moveCountEl.textContent = '000';
+
+    const OFFSET = 34;
+    inGroup.visible = true;
+    inGroup.position.x = -OFFSET;
+    setModelOpacity(inCubelets, 0);
+    const duration = 460;
+    const start = performance.now();
+    function step(now){
+      const t = Math.min((now-start)/duration, 1);
+      const eased = t<0.5 ? 2*t*t : 1-Math.pow(-2*t+2,2)/2;
+      outGroup.position.x = eased*OFFSET;
+      inGroup.position.x = -OFFSET + eased*OFFSET;
+      setModelOpacity(outCubelets, 1-eased);
+      setModelOpacity(inCubelets, eased);
+      if(t < 1){
+        requestAnimationFrame(step);
+      } else {
+        outGroup.visible = false;
+        outGroup.position.x = 0;
+        inGroup.position.x = 0;
+        setModelOpacity(outCubelets, 1);
+        setModelOpacity(inCubelets, 1);
+        outCubelets.forEach(mesh=>{
+          mesh.material.forEach(m=> m.transparent = false);
+        });
+        inCubelets.forEach(mesh=>{
+          mesh.material.forEach(m=> m.transparent = false);
+        });
+        modelTransitioning = false;
+        wrap.classList.remove('model-transition');
+      }
+    }
+    requestAnimationFrame(step);
+  }
+  modelCubeBtn.addEventListener('click', ()=> setActiveModel('cube'));
+  modelSkewbBtn.addEventListener('click', ()=> setActiveModel('skewb'));
+
+  // ---------- LEGEND TOGGLE ----------
+  const legendEl = document.getElementById('legend');
+  const legendToggleBtn = document.getElementById('legendToggle');
+  const legendCloseBtn = document.getElementById('legendClose');
+  function openLegend(){
+    legendEl.classList.add('open');
+    legendToggleBtn.classList.add('hidden');
+  }
+  function closeLegend(){
+    legendEl.classList.remove('open');
+    legendToggleBtn.classList.remove('hidden');
+  }
+  legendToggleBtn.addEventListener('click', openLegend);
+  legendCloseBtn.addEventListener('click', closeLegend);
+
+  // ---------- VIEW ROTATION (arrow keys, fixed 90° steps + mouse-release magnetism) ----------
+  // Yaw (left/right) always turns around the fixed world "up" axis, like
+  // spinning a turntable. Pitch (up/down) turns around the view's own
+  // CURRENT right axis — recomputed from `orient` at the moment of the
+  // key press — rather than a fixed world axis. That's what makes it
+  // "local": whatever face is on top lands exactly where front used to be,
+  // no matter how much yaw has already been applied.
+  let viewAnimating = false;
+  let viewAnimationId = 0;
+  function animateOrientTo(targetQuat, duration){
+  viewAnimationId++;
+  const myId = viewAnimationId;
+
+  viewAnimating = true;
+
+  const startQuat = orient.clone();
+  const start = performance.now();
+
+  function step(now){
+
+    if(myId !== viewAnimationId){
+      viewAnimating = false;
+      return;
+    }
+
+    const t = Math.min((now-start)/duration,1);
+    const eased =
+      t < 0.5
+      ? 2*t*t
+      : 1 - Math.pow(-2*t+2,2)/2;
+
+    orient.slerpQuaternions(startQuat,targetQuat,eased);
+    updateCamera();
+
+    if(t < 1){
+      requestAnimationFrame(step);
+    }else{
+      orient.copy(targetQuat);
+      updateCamera();
+      viewAnimating = false;
+    }
+  }
+
+  requestAnimationFrame(step);
+}
+
+  function turnView(kind, angle){
+    if(viewAnimating) return;
+    let deltaQuat;
+    if(kind === 'yaw'){
+      deltaQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0), angle);
+    } else {
+      deltaQuat = new THREE.Quaternion().setFromAxisAngle(currentRight(), angle);
+    }
+    playWhoosh();
+    // pre-multiply: apply as a rotation in world space on top of the
+    // current orientation (not relative to the object's own local frame),
+    // which is what lets the pitch axis be "current" without drifting.
+    const target = deltaQuat.multiply(orient.clone());
+    animateOrientTo(target, 320);
+  }
+
+  // The 16 orientations reachable by combining 4 yaw steps with 4 pitch
+  // steps (pitch always taken around that yaw's own right axis) — used to
+  // magnetize a free mouse-drag back to a "clean" 90°-aligned view.
+  const CANDIDATE_ORIENTS = (function(){
+    const list = [];
+    for(let yi=0; yi<4; yi++){
+      const yawQ = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0), yi*Math.PI/2);
+      const back = BASE_BACK.clone().applyQuaternion(yawQ);
+      const up = BASE_UP.clone().applyQuaternion(yawQ);
+      const right = new THREE.Vector3().crossVectors(up, back).normalize();
+      for(let pi=0; pi<4; pi++){
+        const pitchQ = new THREE.Quaternion().setFromAxisAngle(right, pi*Math.PI/2);
+        list.push(pitchQ.clone().multiply(yawQ));
+      }
+    }
+    return list;
+  })();
+  function magnetizeView(){
+    let best = null, bestDot = -Infinity;
+    CANDIDATE_ORIENTS.forEach(c=>{
+      const d = Math.abs(c.dot(orient));
+      if(d > bestDot){ bestDot = d; best = c; }
+    });
+    if(!best) return;
+    // Quaternions q and -q represent the identical rotation, but slerping
+    // toward whichever one has the "wrong" sign relative to the current
+    // orient takes the long way around. Flip to match orient's sign so
+    // the snap always animates along the shortest path.
+    let target = best.clone();
+    if(target.dot(orient) < 0) target.set(-target.x, -target.y, -target.z, -target.w);
+    animateOrientTo(target, 260);
+  }
+
+  // ---------- DYNAMIC FACE MAPPING ----------
+  // Figures out which physical face (U/D/L/R/F/B) currently occupies each
+  // on-screen position (top/bottom/left/right/front/back) given the current
+  // view orientation, so hotkeys always act on the face the player actually
+  // sees there. Built directly from the same back/up/right vectors that
+  // drive the camera, so it stays correct through vertical turns too —
+  // no degenerate cross-product fallback needed.
+  const WORLD_AXES = [
+    { vec: new THREE.Vector3(1,0,0),  face:'R' },
+    { vec: new THREE.Vector3(-1,0,0), face:'L' },
+    { vec: new THREE.Vector3(0,1,0),  face:'U' },
+    { vec: new THREE.Vector3(0,-1,0), face:'D' },
+    { vec: new THREE.Vector3(0,0,1),  face:'F' },
+    { vec: new THREE.Vector3(0,0,-1), face:'B' },
+  ];
+  function nearestAxisFace(dir){
+    let best = null, bestDot = -Infinity;
+    for(const a of WORLD_AXES){
+      const d = a.vec.dot(dir);
+      if(d > bestDot){ bestDot = d; best = a; }
+    }
+    return best.face;
+  }
+  function currentFaceMapping(){
+    const back = currentBack();
+    const up = currentUp();
+    const right = new THREE.Vector3().crossVectors(up, back).normalize();
+    const forward = back.clone().negate();
+    return {
+      F: nearestAxisFace(forward),
+      B: nearestAxisFace(back),
+      R: nearestAxisFace(right),
+      L: nearestAxisFace(right.clone().negate()),
+      U: nearestAxisFace(up),
+      D: nearestAxisFace(up.clone().negate()),
+    };
+  }
+
+  // Same idea as currentFaceMapping, but for the Skewb: figures out which
+  // world corner currently sits in each of the 4 "top" screen quadrants
+  // (top-left/top-right/bottom-left/bottom-right, as seen from the current
+  // view) and binds those to Q/W/A/S — so the keys always turn whatever
+  // corner the player currently sees there, exactly like the cube's WASDFQ.
+  function currentSkewbKeyCorners(){
+    const upAxis = roundToWorldAxis(currentUp());
+    const rightAxis = roundToWorldAxis(currentRight());
+    const fwdAxis = roundToWorldAxis(currentBack().clone().negate());
+    function cornerFor(rSign, fSign){
+      const v = upAxis.clone()
+        .add(rightAxis.clone().multiplyScalar(rSign))
+        .add(fwdAxis.clone().multiplyScalar(fSign));
+      return { x: Math.round(v.x), y: Math.round(v.y), z: Math.round(v.z) };
+    }
+    return {
+      KeyQ: cornerFor(-1,1),  // top-left  (near)
+      KeyW: cornerFor(1,1),   // top-right (near)
+      KeyA: cornerFor(-1,-1), // bottom-left  (far)
+      KeyS: cornerFor(1,-1),  // bottom-right (far)
+    };
+  }
+
+  // ---------- KEYBOARD ----------
+  // wasdfq turn the visually top/left/bottom/right/front/back face clockwise
+  // (shift = counter-clockwise); arrows spin the view by 90°.
+  // Uses e.code (the physical key) rather than e.key, so the bindings stay
+  // on the same physical keys regardless of the active keyboard layout
+  // (e.g. Cyrillic), where e.key would report a completely different character.
+  const CODE_TO_VISUAL = { KeyW:'U', KeyA:'L', KeyS:'D', KeyD:'R', KeyF:'F', KeyQ:'B' };
+  window.addEventListener('keydown', (e)=>{
+    if(e.code === 'ArrowLeft'){
+      e.preventDefault();
+      turnView('yaw', -Math.PI/2);
+      return;
+    }
+    if(e.code === 'ArrowRight'){
+      e.preventDefault();
+      turnView('yaw', Math.PI/2);
+      return;
+    }
+    if(e.code === 'ArrowUp'){
+      e.preventDefault();
+      // Same engine as an L/R face turn, just applied to every cubelet:
+      // the axis is the view's current local "right" (rounded to a true
+      // cube axis so it stays perfectly aligned), so whatever is currently
+      // on top always lands exactly where front was — the camera itself
+      // never moves for this.
+      spinWholeCube(roundToWorldAxis(currentRight()), 1, { duration: 320 });
+      return;
+    }
+    if(e.code === 'ArrowDown'){
+      e.preventDefault();
+      spinWholeCube(roundToWorldAxis(currentRight()), -1, { duration: 320 });
+      return;
+    }
+    if(activeModel === 'skewb'){
+      const corner = currentSkewbKeyCorners()[e.code];
+      if(corner){
+        e.preventDefault();
+        rotateSkewb(corner, e.shiftKey ? -1 : 1);
+        return;
+      }
+    } else {
+      const visualSlot = CODE_TO_VISUAL[e.code];
+      if(visualSlot){
+        e.preventDefault();
+        const mapping = currentFaceMapping();
+        doMove(mapping[visualSlot], e.shiftKey);
+        return;
+      }
+    }
+    if(e.code === 'Space'){
+      e.preventDefault();
+      activeModel==='cube' ? scramble() : scrambleSkewb();
+      return;
+    }
+    if(e.code === 'Enter'){
+      activeModel==='cube' ? resetCube() : resetSkewb();
+    }
+  });
+
+  // ---------- MOUSE / TOUCH: orbit view + face turning ----------
+  const raycaster = new THREE.Raycaster();
+  const pointer = new THREE.Vector2();
+  let dragMode = null; // 'orbit' | 'face' | null
+  let dragStart = { x:0, y:0 };
+  let dragCubelet = null;
+  let dragFaceNormal = null;
+  let dragHitPoint = null;
+  let faceMoveDone = false;
+  let orientAtDragStart = null; // remembered view orientation when the drag began
+  let dragBlockedByAnimation = false; // true only if the drag began while a cube move was mid-animation
+
+  function setPointerFromEvent(ev){
+    const r = renderer.domElement.getBoundingClientRect();
+    pointer.x = ((ev.clientX - r.left) / r.width) * 2 - 1;
+    pointer.y = -((ev.clientY - r.top) / r.height) * 2 + 1;
+  }
+
+  function worldToScreen(v){
+    const p = v.clone().project(camera);
+    return { x: p.x, y: p.y };
+  }
+
+  function onPointerDown(ev){
+    if(viewAnimating) return; // view is mid snap-back/turn: ignore clicks until it settles
+    if(isAnimating) {
+      // A cube-move animation is playing: allow a temporary look-around,
+      // but always spring back to the pre-drag view on release so it
+      // never fights with, or gets left mid-way by, the move animation.
+      dragMode='orbit';
+      dragStart = {x:ev.clientX, y:ev.clientY};
+      orientAtDragStart = orient.clone();
+      dragBlockedByAnimation = true;
+      wrap.classList.add('dragging');
+      return;
+    }
+    setPointerFromEvent(ev);
+    raycaster.setFromCamera(pointer, camera);
+    const hits = activeModel === 'cube' ? raycaster.intersectObjects(cubelets, false) : [];
+    dragStart = { x: ev.clientX, y: ev.clientY };
+    faceMoveDone = false;
+    if(hits.length){
+      const hit = hits[0];
+      dragMode = 'face';
+      dragCubelet = hit.object;
+      const n = hit.face.normal.clone().transformDirection(hit.object.matrixWorld).round();
+      dragFaceNormal = n;
+      dragHitPoint = hit.point.clone();
+    } else {
+      dragMode = 'orbit';
+      orientAtDragStart = orient.clone();
+      dragBlockedByAnimation = false;
+    }
+    wrap.classList.add('dragging');
+  }
+
+  function onPointerMove(ev){
+    if(!dragMode) return;
+    const dx = ev.clientX - dragStart.x;
+    const dy = ev.clientY - dragStart.y;
+
+    if(dragMode === 'orbit'){
+      // Same angular sensitivity for both axes, and the pitch axis is
+      // recomputed fresh from the *current* orientation on every move
+      // event (rather than frozen at drag-start) -- exactly like a
+      // standard orbit/trackball camera -- so a vertical drag always
+      // pitches around the view's true current "right" axis and feels
+      // identical in weight to a horizontal drag, no matter how far the
+      // view has already turned during this same drag.
+      const ORBIT_SENSITIVITY = 0.006;
+      const yawQ = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0), -dx * ORBIT_SENSITIVITY);
+      const pitchQ = new THREE.Quaternion().setFromAxisAngle(currentRight(), -dy * ORBIT_SENSITIVITY);
+      orient.premultiply(pitchQ).premultiply(yawQ);
+      updateCamera();
+      dragStart = { x: ev.clientX, y: ev.clientY };
+      return;
+    }
+
+    if(dragMode === 'face' && !faceMoveDone && !isAnimating){
+      const dist = Math.hypot(dx, dy);
+      if(dist < 16) return; // threshold
+
+      // candidate axes = world axes orthogonal to face normal
+      const axes = ['x','y','z'].filter(a => Math.abs(dragFaceNormal[a]) < 0.5);
+      let best = null, bestScore = -1, bestSign = 1;
+      const dragDir = new THREE.Vector2(dx, dy).normalize();
+
+      axes.forEach(axisName=>{
+        const axisVec = new THREE.Vector3(
+          axisName==='x'?1:0, axisName==='y'?1:0, axisName==='z'?1:0
+        );
+        const tangent = axisVec.clone().cross(dragFaceNormal).normalize();
+        const p1 = dragHitPoint.clone();
+        const p2 = dragHitPoint.clone().addScaledVector(tangent, 0.25);
+        const s1 = worldToScreen(p1), s2 = worldToScreen(p2);
+        const screenVec = new THREE.Vector2(s2.x - s1.x, -(s2.y - s1.y)).normalize();
+        const score = screenVec.dot(dragDir);
+        if(Math.abs(score) > bestScore){
+          bestScore = Math.abs(score);
+          best = axisName;
+          bestSign = score > 0 ? 1 : -1;
+        }
+      });
+
+      if(best){
+        const layer = dragCubelet.userData.gridPos ? gridPosOf(dragCubelet)[best] : 0;
+        // direction: tangent-cross convention; sign flips depending on axis to feel natural
+        const dir = bestSign;
+        rotateLayer(best, layer, dir, { duration: 190 });
+        faceMoveDone = true;
+      }
+    }
+  }
+
+  function onPointerUp(){
+    if(dragMode === 'orbit' && orientAtDragStart){
+      animateOrientTo(orientAtDragStart.clone(), 320);
+    }
+    dragMode = null;
+    dragCubelet = null;
+    orientAtDragStart = null;
+    dragBlockedByAnimation = false;
+    wrap.classList.remove('dragging');
+  }
+
+  renderer.domElement.addEventListener('pointerdown', onPointerDown);
+  window.addEventListener('pointermove', onPointerMove);
+  window.addEventListener('pointerup', onPointerUp);
+  window.addEventListener('pointerleave', onPointerUp);
+
+  // wheel = subtle zoom
+  window.addEventListener('wheel', (ev)=>{
+    orbit.radius = Math.min(13, Math.max(6, orbit.radius + ev.deltaY*0.004));
+    updateCamera();
+  }, { passive:true });
+
+  // ---------- IDLE WOBBLE ----------
+  // Tiny, bounded sway applied directly to the visible group's rotation
+  // (not to `orient`/camera), so it never accumulates and never turns far
+  // enough to suggest a different face is now "front".
+  const wobble = { t: Math.random()*1000 };
+  const WOBBLE_AMP = 0.0227; // radians, ~1.3°
+  function applyWobble(dt){
+    if(isAnimating || viewAnimating || dragMode) return; // don't fight active animations/drags
+    wobble.t += dt;
+    const rx = Math.sin(wobble.t*0.55) * WOBBLE_AMP;
+    const ry = Math.sin(wobble.t*0.37 + 1.3) * WOBBLE_AMP;
+    const rz = Math.sin(wobble.t*0.23 + 2.1) * WOBBLE_AMP * 0.5;
+    group3.rotation.set(rx, ry, rz);
+    group2.rotation.set(rx, ry, rz);
+  }
+
+  // ---------- RENDER LOOP ----------
+  let lastTick = performance.now();
+  function tick(now){
+    now = now || performance.now();
+    const dt = Math.min((now - lastTick)/1000, 0.1);
+    lastTick = now;
+    applyWobble(dt);
+    renderer.render(scene, camera);
+    requestAnimationFrame(tick);
+  }
+  tick();
+
+  // intro entrance animation
+  group3.scale.set(0.001,0.001,0.001);
+  const introStart = performance.now();
+  function intro(now){
+    const t = Math.min((now-introStart)/800, 1);
+    const eased = 1-Math.pow(1-t,3);
+    group3.scale.setScalar(0.001 + eased*0.999);
+    if(t<1) requestAnimationFrame(intro);
+  }
+  requestAnimationFrame(intro);
+
+})();
+</script>
+</body>
+</html>
