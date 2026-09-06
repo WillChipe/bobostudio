@@ -1,0 +1,2488 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='white'/%3E%3Cg fill='none' stroke='%231a1a1a' stroke-width='4'%3E%3Ccircle cx='32' cy='32' r='27'/%3E%3Ccircle cx='32' cy='32' r='18'/%3E%3Ccircle cx='32' cy='32' r='9'/%3E%3C/g%3E%3C/svg%3E">
+<title>холст для творчества</title>
+<style>
+  :root{
+    --bg:#efefec;
+    --panel:#ffffff;
+    --panel2:#ffffff;
+    --panel3:#f0f0ed;
+    --border:#17181c;
+    --border-soft:#d8d8d3;
+    --text:#17181c;
+    --text-dim:#68686f;
+    --accent:#ff4d1f;
+    --accent-hover:#e6440f;
+    --accent-dim:#ff4d1f1a;
+    --danger:#d1372c;
+    --radius-lg:0px;
+    --radius-md:0px;
+    --radius-sm:0px;
+    --hard-shadow:4px 4px 0 rgba(0,0,0,0.9);
+    --hard-shadow-sm:3px 3px 0 rgba(0,0,0,0.9);
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0;padding:0;height:100%;
+    background:var(--bg);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    overflow:hidden;
+    user-select:none;
+    -webkit-user-select:none;
+  }
+  #app{
+    display:flex;
+    flex-direction:column;
+    height:100vh;
+    width:100vw;
+  }
+
+  /* ---------- TOOLBAR ---------- */
+  .toolbar{
+    height:58px;
+    flex:0 0 auto;
+    display:flex;
+    align-items:center;
+    gap:8px;
+    padding:0 14px;
+    background:var(--panel);
+    border-bottom:2px solid var(--border);
+    z-index:20;
+  }
+  .brand{
+    font-size:15px;
+    font-weight:800;
+    letter-spacing:0.2px;
+    color:var(--text);
+    margin-right:10px;
+    display:flex;align-items:center;gap:8px;
+    white-space:nowrap;
+  }
+  .brand .dot{
+    width:11px;height:11px;
+    background:var(--accent);
+    border:1.5px solid var(--border);
+  }
+  .divider{
+    width:1px;align-self:stretch;margin:14px 4px;
+    background:var(--border-soft);
+    flex:0 0 auto;
+  }
+  .toolbar-group{
+    display:flex;align-items:center;gap:6px;
+  }
+  button.btn{
+    display:flex;align-items:center;gap:6px;
+    background:var(--panel2);
+    color:var(--text);
+    border:1.5px solid var(--border);
+    border-radius:var(--radius-md);
+    padding:8px 12px;
+    font-size:13px;
+    font-weight:600;
+    cursor:pointer;
+    transition:background .1s ease, color .1s ease, transform .06s ease;
+    white-space:nowrap;
+  }
+  button.btn:hover:not(:disabled){
+    background:var(--text);
+    color:var(--panel);
+    border-color:var(--text);
+  }
+  button.btn:active:not(:disabled){
+    transform:translate(1px,1px);
+  }
+  button.btn:disabled{
+    opacity:.35;
+    cursor:default;
+  }
+  button.btn.primary{
+    background:var(--accent);
+    border-color:var(--border);
+    color:#ffffff;
+    font-weight:700;
+  }
+  button.btn.primary:hover:not(:disabled){
+    background:var(--accent-hover);
+    color:#ffffff;
+  }
+  button.icon-btn{
+    width:34px;height:34px;padding:0;
+    display:flex;align-items:center;justify-content:center;
+    background:var(--panel2);
+    border:1.5px solid var(--border);
+    border-radius:var(--radius-md);
+    color:var(--text);
+    cursor:pointer;
+    font-size:15px;
+    transition:background .1s ease, color .1s ease;
+  }
+  button.icon-btn:hover:not(:disabled){background:var(--text);color:var(--panel);}
+  button.icon-btn:active:not(:disabled){transform:translate(1px,1px);}
+  button.icon-btn:disabled{opacity:.3;cursor:default;}
+  .zoom-readout{
+    font-size:12px;color:var(--text-dim);
+    min-width:44px;text-align:center;
+    font-variant-numeric:tabular-nums;
+    font-weight:600;
+  }
+  .spacer{flex:1;}
+  .hint{
+    font-size:12px;
+    color:var(--text-dim);
+    display:flex;align-items:center;gap:6px;
+    white-space:nowrap;
+  }
+  kbd{
+    background:var(--panel3);
+    border:1.5px solid var(--border);
+    border-radius:2px;
+    padding:1px 6px;
+    font-size:11px;
+    font-family:inherit;
+    color:var(--text);
+    font-weight:600;
+  }
+
+  /* ---------- WORKSPACE ---------- */
+  .workspace{
+    flex:1;
+    display:flex;
+    min-height:0;
+  }
+  .viewport{
+    flex:1;
+    position:relative;
+    overflow:hidden;
+    background:
+      repeating-linear-gradient(0deg, #e3e3de 0 1px, transparent 1px 32px),
+      repeating-linear-gradient(90deg, #e3e3de 0 1px, transparent 1px 32px),
+      var(--bg);
+    cursor:crosshair;
+    touch-action:none;
+  }
+  .viewport.panning{cursor:grabbing;}
+  .viewport.pan-ready{cursor:grab;}
+
+  .canvas-stage{
+    position:absolute;
+    top:0;left:0;
+    transform-origin:0 0;
+    box-shadow:var(--hard-shadow), 0 0 0 2px var(--border);
+    background-image:
+      linear-gradient(45deg, #e2e2df 25%, transparent 25%),
+      linear-gradient(-45deg, #e2e2df 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #e2e2df 75%),
+      linear-gradient(-45deg, transparent 75%, #e2e2df 75%);
+    background-size:24px 24px;
+    background-position:0 0, 0 12px, 12px -12px, -12px 0px;
+    background-color:#f7f7f5;
+  }
+  .canvas-stage canvas{
+    position:absolute;
+    top:0;left:0;
+    display:block;
+    image-rendering:pixelated;
+  }
+  #overlayCanvas{pointer-events:none;}
+
+  .status-bar{
+    position:absolute;
+    left:16px;bottom:14px;
+    display:flex;gap:10px;
+    align-items:center;
+    background:#ffffff;
+    border:1.5px solid var(--border);
+    border-radius:var(--radius-lg);
+    box-shadow:var(--hard-shadow-sm);
+    padding:7px 14px;
+    font-size:12px;
+    color:var(--text-dim);
+    z-index:5;
+  }
+  .status-bar b{color:var(--text);font-weight:700;}
+
+  /* ---------- SIDEBAR ---------- */
+  .sidebar{
+    width:180px;
+    flex:0 0 auto;
+    background:var(--panel);
+    border-left:2px solid var(--border);
+    padding:12px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    text-align:center;
+    gap:14px;
+    overflow-y:auto;
+    overflow-x:hidden;
+  }
+  .sidebar > div {
+    width:100%;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+  }
+  .sidebar h3{
+    margin:0 0 6px 0;
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:.04em;
+    color:var(--text-dim);
+    font-weight:700;
+    white-space:nowrap;
+    text-align:center;
+    width:100%;
+  }
+  .current-color-row{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:6px;
+    width:148px;
+    margin:0 auto;
+  }
+  .swatch-current{
+    width:38px;height:38px;
+    border-radius:var(--radius-md);
+    border:1.5px solid var(--border);
+    position:relative;
+    overflow:hidden;
+    flex:0 0 auto;
+    background-image:
+      linear-gradient(45deg, #e2e2df 25%, transparent 25%),
+      linear-gradient(-45deg, #e2e2df 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #e2e2df 75%),
+      linear-gradient(-45deg, transparent 75%, #e2e2df 75%);
+    background-size:12px 12px;
+    background-position:0 0, 0 6px, 6px -6px, -6px 0px;
+    background-color:#f7f7f5;
+  }
+  .swatch-current .fill{
+    position:absolute;inset:0;
+  }
+  .swatch-current input[type=color]{
+    position:absolute;inset:0;
+    width:100%;height:100%;
+    border:none;
+    padding:0;
+    cursor:pointer;
+    opacity:0;
+  }
+  .hex-input{
+    width:66px;
+    flex:0 0 auto;
+    text-align:center;
+    background:var(--panel2);
+    border:1.5px solid var(--border);
+    color:var(--text);
+    border-radius:var(--radius-sm);
+    padding:8px 6px;
+    font-size:12px;
+    font-family:ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-weight:600;
+  }
+  .hex-input:focus{outline:none; border-color:var(--accent); box-shadow:0 0 0 1.5px var(--accent);}
+  .eraser-btn{
+    width:28px;height:28px;flex:0 0 auto;padding:0;
+    display:flex;align-items:center;justify-content:center;
+    background:var(--panel2);color:var(--text);
+    border:1.5px solid var(--border);cursor:pointer;
+    font-size:14px;font-weight:800;line-height:1;
+  }
+  .eraser-btn:hover{background:var(--text);color:var(--panel);}
+  .eraser-btn.active{background:var(--accent);color:#fff;border-color:var(--border);}
+
+  .swatch-grid{
+    display:grid;
+    grid-template-columns:repeat(8, 16px);
+    grid-auto-rows:16px;
+    gap:3px;
+    justify-content:center;
+    width:148px;
+    margin:0 auto;
+  }
+  .swatch-pages{
+    width:148px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:6px;
+    margin-top:12px;
+  }
+  .swatch-page-btn{
+    width:24px;height:22px;padding:0;
+    display:flex;align-items:center;justify-content:center;
+    background:var(--panel2);color:var(--text);
+    border:1.5px solid var(--border);
+    cursor:pointer;font-size:11px;font-weight:800;
+  }
+  .swatch-page-btn:hover:not(:disabled){background:var(--text);color:var(--panel);}
+  .swatch-page-btn:disabled{opacity:.35;cursor:default;}
+  .swatch-page-label{font-size:9px;color:var(--text-dim);min-width:40px;text-align:center;font-variant-numeric:tabular-nums;}
+  .swatch{
+    width:16px;height:16px;
+    border-radius:0;
+    border:1px solid var(--border);
+    cursor:pointer;
+    position:relative;
+    background-image:
+      linear-gradient(45deg, #e2e2df 25%, transparent 25%),
+      linear-gradient(-45deg, #e2e2df 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #e2e2df 75%),
+      linear-gradient(-45deg, transparent 75%, #e2e2df 75%);
+    background-size:10px 10px;
+    background-position:0 0, 0 5px, 5px -5px, -5px 0px;
+    background-color:#f7f7f5;
+    transition:transform .08s ease, box-shadow .08s ease;
+  }
+  .swatch:hover{box-shadow:2px 2px 0 rgba(0,0,0,0.9); transform:translate(-1px,-1px);}
+  .swatch .fill{position:absolute;inset:0;}
+  
+
+  .fill-mode-grid{
+    display:grid;
+    grid-template-columns:1fr;
+    gap:5px;
+    width:148px;
+    margin:0 auto;
+  }
+  .fill-mode-btn{
+    border:1.5px solid var(--border);
+    border-radius:var(--radius-sm);
+    padding:5px 6px;
+    font-size:10px;
+    font-weight:800;
+    text-align:center;
+    cursor:pointer;
+    position:relative;
+    overflow:hidden;
+    color:var(--text);
+    text-shadow:0 0 3px #ffffff, 0 0 3px #ffffff, 0 0 3px #ffffff;
+    transition:box-shadow .08s ease, transform .08s ease, border-color .1s ease;
+  }
+  .fill-mode-btn:hover{box-shadow:2px 2px 0 rgba(0,0,0,0.9); transform:translate(-1px,-1px);}
+  .fill-mode-btn.selected{
+    border-color:var(--accent);
+    box-shadow:2px 2px 0 var(--accent);
+    color:var(--accent);
+    text-shadow:0 0 3px #ffffff, 0 0 3px #ffffff;
+  }
+
+  /* Вид градиентов на кнопках слева направо: слева — центр сектора (плотная заливка),
+     справа — дуга/край (заливка стремится к прозрачности). Под заливкой — шахматка,
+     как на холсте, чтобы была видна прозрачность на затухании. */
+  .fill-mode-btn{
+    background-image:
+      linear-gradient(45deg, #e2e2df 25%, transparent 25%),
+      linear-gradient(-45deg, #e2e2df 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #e2e2df 75%),
+      linear-gradient(-45deg, transparent 75%, #e2e2df 75%);
+    background-size:10px 10px;
+    background-position:0 0, 0 5px, 5px -5px, -5px 0px;
+    background-color:#f7f7f5;
+  }
+
+  /* Базовое правило .fill-mode-btn задаёт background-size:10px 10px (для шахматки).
+     Т.к. background-size без явного списка циклически применяется ко ВСЕМ слоям
+     фона, наши превью-слои тоже тайлились по 10px — отсюда "повторяется несколько
+     раз". Ниже для каждого режима явно перечисляем background-size/position под
+     каждый слой: превью-слои — auto (растянуты на всю кнопку), а 4 слоя шахматки
+     в конце — как и раньше, по 10px. */
+
+  /* слева — плотно (центр сектора), справа — пусто/прозрачно (край дуги) */
+  .fill-mode-btn.mode-gradient {
+    background-image:
+      linear-gradient(90deg, var(--accent) 0%, rgba(255,77,31,0) 50%),
+      linear-gradient(45deg, #e2e2df 25%, transparent 25%),
+      linear-gradient(-45deg, #e2e2df 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #e2e2df 75%),
+      linear-gradient(-45deg, transparent 75%, #e2e2df 75%);
+    background-size: 100% 100%, 10px 10px, 10px 10px, 10px 10px, 10px 10px;
+    background-position: 0 0, 0 0, 0 5px, 5px -5px, -5px 0px;
+  }
+
+  /* Превью спрея рисуется отдельным canvas. Под ним — только шахматка,
+     без CSS radial-gradient-слоёв: так сетка не масштабируется/не смешивается
+     с точками и выглядит так же, как у остальных прозрачных превью. */
+  .fill-mode-btn.mode-spray{
+    background-image:
+      linear-gradient(45deg, #e2e2df 25%, transparent 25%),
+      linear-gradient(-45deg, #e2e2df 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #e2e2df 75%),
+      linear-gradient(-45deg, transparent 75%, #e2e2df 75%);
+    background-size:10px 10px,10px 10px,10px 10px,10px 10px;
+    background-position:0 0,0 5px,5px -5px,-5px 0px;
+  }
+
+  /* Растровые превью для режимов с направленными элементами.
+     Они не зависят от CSS-conic geometry: толщина штриха остаётся постоянной,
+     а спад вправо задаётся альфой. */
+  .fill-mode-btn.preview-canvas-mode{ padding:5px 6px; }
+  .fill-mode-preview-canvas{
+    position:absolute; inset:0; width:100%; height:100%;
+    pointer-events:none; z-index:0;
+  }
+  .fill-mode-btn.preview-canvas-mode > span{ position:relative; z-index:1; }
+  .fill-mode-btn.mode-rays, .fill-mode-btn.mode-scratches{
+    background-image:
+      linear-gradient(45deg, #e2e2df 25%, transparent 25%),
+      linear-gradient(-45deg, #e2e2df 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #e2e2df 75%),
+      linear-gradient(-45deg, transparent 75%, #e2e2df 75%);
+    background-size:10px 10px,10px 10px,10px 10px,10px 10px;
+    background-position:0 0,0 5px,5px -5px,-5px 0px;
+  }
+
+  /* ---------- LAYERS ---------- */
+  .layers-panel{width:148px;margin:0 auto;display:flex;flex-direction:column;min-height:0;}
+  .layers-toolbar{display:grid;grid-template-columns:repeat(6,22px);gap:3px;justify-content:center;margin-bottom:6px;}
+  .layer-tool{width:22px;height:22px;padding:0;display:flex;align-items:center;justify-content:center;background:var(--panel2);border:1.5px solid var(--border);color:var(--text);cursor:pointer;font-weight:800;}
+  .layer-delete-wrap{position:relative;width:22px;height:22px;}
+  .delete-confirm-popover{
+    position:absolute;left:50%;bottom:calc(100% + 8px);transform:translateX(-50%);
+    display:flex;align-items:center;gap:7px;
+    padding:5px 6px 5px 8px;
+    background:var(--panel);color:var(--text);
+    border:1.5px solid var(--border);box-shadow:var(--hard-shadow);
+    z-index:30;white-space:nowrap;
+  }
+  .delete-confirm-popover::after{
+    content:"";position:absolute;left:50%;bottom:-6px;width:9px;height:9px;
+    background:var(--panel);border-right:1.5px solid var(--border);border-bottom:1.5px solid var(--border);
+    transform:translateX(-50%) rotate(45deg);
+  }
+  .delete-confirm-popover.hidden{display:none;}
+  .delete-confirm-popover .prompt{font-size:10px;font-weight:800;line-height:1;}
+  .delete-confirm-popover button{
+    width:22px;height:22px;padding:0;border:1.5px solid var(--border);
+    display:flex;align-items:center;justify-content:center;
+    background:var(--panel2);color:var(--text);cursor:pointer;
+    font-size:12px;font-weight:900;line-height:1;
+  }
+  .delete-confirm-popover button:hover{background:var(--text);color:var(--panel);}
+  .delete-confirm-popover .confirm-delete:hover{background:var(--accent);color:#fff;}
+  .layer-merge-icon{width:13px;height:13px;display:block;overflow:visible;}
+  .layer-tool:hover:not(:disabled){background:var(--text);color:var(--panel);}
+  .layer-tool:disabled{opacity:.3;cursor:not-allowed;}
+  .layer-list{width:148px;height:225px;max-height:225px;overflow-y:auto;overflow-x:hidden;border:1.5px solid var(--border);background:var(--panel2);flex:0 0 auto;}
+  .layer-row{display:grid;grid-template-columns:24px minmax(0,1fr) 24px;align-items:center;gap:5px;padding:5px 5px;border-bottom:1px solid var(--border-soft);cursor:pointer;min-height:32px;}
+  .layer-row:last-child{border-bottom:none;}
+  .layer-row.selected{background:var(--accent-dim);box-shadow:inset 3px 0 0 var(--accent);}
+  .layer-vis{width:22px;height:22px;border:1px solid var(--border);background:var(--panel2);padding:0;font-size:12px;cursor:pointer;}
+  .layer-name{font-size:10.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:left;}
+  .layer-text{min-width:0;}
+  .layer-name-input{width:100%;min-width:0;border:1px solid var(--accent);background:var(--panel2);color:var(--text);font:700 10.5px/1.2 inherit;padding:1px 2px;outline:none;}
+  .layer-meta{font-size:8.5px;color:var(--text-dim);text-align:left;}
+  .layer-bg-btn{width:22px;height:22px;padding:0;border:1px solid var(--border);background:var(--panel2);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;line-height:1;position:relative;}
+  .layer-bg-btn:hover{background:var(--text);color:var(--panel);}
+  .layer-bg-btn input[type=color]{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;border:0;padding:0;}
+  .layer-opacity-row{display:flex;align-items:center;gap:6px;margin-top:6px;}
+  .layer-opacity-row label{font-size:9px;color:var(--text-dim);font-weight:700;}
+  .layer-opacity-row input{width:92px;}
+  .layer-opacity-row{margin-bottom:7px;}
+  .layers-sidebar-section{width:100%;margin-top:0;padding-top:2px;}
+  .layers-sidebar-section h3{margin-bottom:6px;}
+
+  .curve-canvas{
+    width:148px;
+    height:120px;
+    border:1.5px solid var(--border);
+    border-radius:var(--radius-sm);
+    background:var(--panel2);
+    cursor:crosshair;
+    touch-action:none;
+    display:block;
+  }
+  .curve-hint{
+    font-size:9.5px;
+    line-height:1.35;
+    color:var(--text-dim);
+    margin-top:6px;
+    text-align:center;
+  }
+
+  .help-btn{
+    position:absolute;
+    left:16px;bottom:14px;
+    width:34px;height:34px;
+    display:flex;align-items:center;justify-content:center;
+    padding:0;
+    background:#ffffff;
+    color:var(--text);
+    border:1.5px solid var(--border);
+    box-shadow:none;
+    font-size:16px;font-weight:800;
+    cursor:pointer;
+    z-index:20;
+  }
+  .help-btn:hover{background:var(--text);color:var(--panel);}
+  .help-panel{
+    position:absolute;left:16px;bottom:58px;
+    width:340px;max-width:min(340px,calc(100vw - 40px));
+    max-height:min(72vh,620px);
+    overflow-y:auto;
+    background:var(--panel);
+    border:1.5px solid var(--border);
+    box-shadow:var(--hard-shadow);
+    padding:12px;
+    z-index:19;
+    text-align:left;
+    user-select:text;
+    -webkit-user-select:text;
+  }
+  .help-panel.hidden{display:none;}
+  .help-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-size:13px;}
+  .help-close{width:24px;height:24px;padding:0;background:transparent;border:1px solid var(--border);font-size:16px;line-height:1;cursor:pointer;}
+  .help-close:hover{background:var(--text);color:var(--panel);}
+  .help-section{padding:8px 0;border-top:1px solid var(--border-soft);}
+  .help-section:first-of-type{border-top:0;padding-top:0;}
+  .help-title{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--text-dim);font-weight:800;margin-bottom:7px;}
+  .help-row{display:flex;align-items:flex-start;gap:6px;margin:6px 0;font-size:11px;line-height:1.35;color:var(--text);}
+  .help-row kbd{flex:0 0 auto;}
+  .help-wide{display:block;width:100%;}
+
+
+  .mobile-blocker{display:none;position:fixed;inset:0;z-index:10000;background:var(--panel);color:var(--text);align-items:center;justify-content:center;text-align:center;padding:24px;}
+  .mobile-blocker-box{max-width:340px;border:2px solid var(--border);padding:28px 22px;font-weight:800;font-size:18px;line-height:1.45;box-shadow:var(--hard-shadow);}
+  .mobile-blocker-title{font-size:28px;margin-bottom:10px;text-transform:lowercase;}
+  @media (max-width:700px){body.mobile-device #app{display:none;} body.mobile-device .mobile-blocker{display:flex;}}
+
+  /* ---------- MODAL ---------- */
+  .modal-backdrop{
+    position:fixed;inset:0;
+    background:rgba(23,24,28,.55);
+    display:flex;align-items:center;justify-content:center;
+    z-index:100;
+  }
+  .modal-backdrop.hidden{display:none;}
+  .modal{
+    width:560px;
+    max-width:92vw;
+    max-height:88vh;
+    overflow-y:auto;
+    background:var(--panel);
+    border:2px solid var(--border);
+    border-radius:var(--radius-lg);
+    box-shadow:6px 6px 0 rgba(0,0,0,0.9);
+    padding:26px 28px 24px;
+  }
+  .modal h2{
+    margin:0 0 4px;
+    font-size:19px;
+    font-weight:800;
+  }
+  .modal p.sub{
+    margin:0 0 20px;
+    font-size:13px;
+    color:var(--text-dim);
+  }
+  .modal h4{
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:.06em;
+    color:var(--text-dim);
+    margin:0 0 10px;
+    font-weight:700;
+  }
+  .preset-grid{
+    display:grid;
+    grid-template-columns:repeat(3, 1fr);
+    gap:10px;
+    margin-bottom:22px;
+  }
+  .preset-card{
+    background:var(--panel2);
+    border:1.5px solid var(--border);
+    border-radius:var(--radius-md);
+    padding:12px 10px 10px;
+    cursor:pointer;
+    display:flex;flex-direction:column;align-items:center;
+    gap:8px;
+    transition:box-shadow .1s ease, transform .1s ease, background .1s ease;
+  }
+  .preset-card:hover{box-shadow:3px 3px 0 rgba(0,0,0,0.9); transform:translate(-1px,-1px);}
+  .preset-card.selected{background:var(--accent-dim); border-color:var(--accent); box-shadow:3px 3px 0 var(--accent);}
+  .preset-shape{
+    background:#dedede;
+    border:1.5px solid var(--border);
+  }
+  .preset-label{font-size:12px;font-weight:700;}
+  .preset-dims{font-size:10.5px;color:var(--text-dim);}
+
+  .custom-row{
+    display:flex;gap:10px;align-items:flex-end;
+    margin-bottom:18px;
+  }
+  .field{
+    display:flex;flex-direction:column;gap:6px;
+    flex:1;
+  }
+  .field label{font-size:11px;color:var(--text-dim);font-weight:600;}
+  .field input[type=number]{
+    background:var(--panel2);
+    border:1.5px solid var(--border);
+    color:var(--text);
+    border-radius:var(--radius-sm);
+    padding:9px 10px;
+    font-size:13px;
+    width:100%;
+    font-weight:600;
+  }
+  .field input[type=number]:focus{outline:none; border-color:var(--accent); box-shadow:0 0 0 1.5px var(--accent);}
+  .swap-btn{
+    width:36px;height:36px;flex:0 0 auto;
+    border-radius:var(--radius-sm);
+    background:var(--panel2);
+    border:1.5px solid var(--border);
+    color:var(--text);
+    cursor:pointer;
+  }
+  .swap-btn:hover{background:var(--text);color:var(--panel);}
+
+  .bg-row{
+    display:flex;align-items:center;gap:12px;
+    margin-bottom:24px;
+  }
+  .bg-color-box{
+    width:38px;height:38px;
+    border-radius:var(--radius-sm);
+    border:1.5px solid var(--border);
+    position:relative;
+    overflow:hidden;
+    background-image:
+      linear-gradient(45deg, #e2e2df 25%, transparent 25%),
+      linear-gradient(-45deg, #e2e2df 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #e2e2df 75%),
+      linear-gradient(-45deg, transparent 75%, #e2e2df 75%);
+    background-size:12px 12px;
+    background-position:0 0, 0 6px, 6px -6px, -6px 0px;
+    background-color:#f7f7f5;
+  }
+  .bg-color-box .fill{position:absolute;inset:0;}
+  .bg-color-box input[type=color]{
+    position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;border:none;padding:0;
+  }
+  .checkbox-row{
+    display:flex;align-items:center;gap:8px;
+    font-size:13px;color:var(--text-dim);
+    cursor:pointer;
+  }
+  .checkbox-row input{cursor:pointer;accent-color:var(--accent);}
+
+  .modal-actions{
+    display:flex;justify-content:flex-end;gap:10px;
+  }
+
+  ::-webkit-scrollbar{width:10px;height:10px;}
+  ::-webkit-scrollbar-thumb{background:#cfcfca;}
+  ::-webkit-scrollbar-track{background:transparent;}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div class="toolbar">
+    <div class="toolbar-group">
+      <button class="btn" id="btnNewCanvas">✚ Новый холст</button>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="toolbar-group">
+      <button class="icon-btn" id="btnUndo" title="Отменить (Ctrl+Z)">↶</button>
+      <button class="icon-btn" id="btnRedo" title="Повторить (Ctrl+Shift+Z)">↷</button>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="toolbar-group">
+      <button class="icon-btn" id="btnZoomOut" title="Уменьшить">−</button>
+      <div class="zoom-readout" id="zoomReadout">100%</div>
+      <button class="icon-btn" id="btnZoomIn" title="Увеличить">+</button>
+      <button class="btn" id="btnFit" title="Вписать в экран">По размеру</button>
+    </div>
+
+    <div class="spacer"></div>
+
+    <div class="divider"></div>
+
+    <div class="toolbar-group">
+      <button class="icon-btn" id="btnImportProject" title="Импорт проекта">⇧</button>
+      <button class="icon-btn" id="btnExportProject" title="Экспорт проекта">⇩</button>
+      <input type="file" id="projectImportInput" accept=".radiart,application/json" hidden>
+    </div>
+
+    <button class="btn primary" id="btnSave">⬇ Сохранить PNG</button>
+  </div>
+
+  <div class="workspace">
+    <div class="viewport" id="viewport">
+      <div class="canvas-stage" id="canvasStage">
+        <canvas id="mainCanvas"></canvas>
+        <canvas id="overlayCanvas"></canvas>
+      </div>
+      <button class="help-btn" id="btnHelp" title="Справка и горячие клавиши">?</button>
+      <div class="help-panel hidden" id="helpPanel">
+        <div class="help-head"><b>Подсказка</b></div>
+        <div class="help-section">
+          <div class="help-title">Рисование сектора</div>
+          <div class="help-row"><kbd>Shift</kbd><span>Во время выбора точки включает/выключает магнит к углам с шагом 15°.</span></div>
+          <div class="help-row"><kbd>Колесо</kbd><span>На 3-м этапе меняет радиус сектора; в остальное время меняет масштаб холста.</span></div>
+          <div class="help-row"><kbd>Esc</kbd><span>Отменить текущее построение.</span></div>
+        </div>
+        <div class="help-section">
+          <div class="help-title">Навигация</div>
+          <div class="help-row"><kbd>Пробел</kbd> + <kbd>ЛКМ</kbd><span>Перемещение холста.</span></div>
+        </div>
+        <div class="help-section">
+          <div class="help-title">История и слои</div>
+          <div class="help-row"><kbd>Ctrl/Cmd+Z</kbd><span>Отменить последнее действие.</span></div>
+          <div class="help-row"><kbd>Ctrl/Cmd+Shift+Z</kbd><kbd>Ctrl/Cmd+Y</kbd><span>Вернуть отменённое действие.</span></div>
+          <div class="help-row"><span class="help-wide">Двойной клик по названию слоя — переименование.</span></div>
+        </div>
+        <div class="help-section">
+          <div class="help-title">Ластик и проект</div>
+          <div class="help-row"><kbd>E</kbd><span>Включить или выключить ластик. Он стирает только активный слой.</span></div>
+          <div class="help-row"><kbd>⇧</kbd><kbd>⇩</kbd><span>Импорт и экспорт проекта Radiart со всеми слоями и сохранёнными цветами.</span></div>
+        </div>
+        <div class="help-section">
+          <div class="help-title">Цвета</div>
+          <div class="help-row"><span class="help-wide">Нажатие цветного квадрата ведёт к смене цвета.</span></div>
+          <div class="help-row"><span class="help-wide">ПКМ по ячейке — сохранить текущий цвет. ЛКМ по сохранённому цвету — выбрать.</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar">
+      <div>
+        <h3>Цвет</h3>
+        <div class="current-color-row">
+          <button class="eraser-btn" id="btnEraser" title="Ластик (E)" aria-label="Ластик (E)" aria-pressed="false">⌫</button>
+          <div class="swatch-current">
+            <div class="fill" id="currentColorFill"></div>
+            <input type="color" id="colorPicker" value="#1a1a1a">
+          </div>
+          <input type="text" class="hex-input" id="hexInput" value="#1A1A1A" maxlength="7">
+        </div>
+      </div>
+
+      <div>
+        <h3>Сохранённые цвета</h3>
+        <div class="swatch-grid" id="swatchGrid"></div>
+        <div class="swatch-pages">
+          <button class="swatch-page-btn" id="swatchPrev" title="Предыдущая страница">‹</button>
+          <div class="swatch-page-label" id="swatchPageLabel">1 / 1</div>
+          <button class="swatch-page-btn" id="swatchNext" title="Следующая страница">›</button>
+        </div>
+      </div>
+
+      <div>
+        <h3>Заливка</h3>
+        <div class="fill-mode-grid" id="fillModeGrid"></div>
+      </div>
+
+
+      <div>
+        <h3>Кривая спада</h3>
+        <canvas id="falloffCurve" width="148" height="120" class="curve-canvas"></canvas>
+        <div class="curve-hint">клик — точка · перетащить — сдвинуть · 2 клика — удалить</div>
+      </div>
+
+      <div class="layers-sidebar-section">
+        <h3>Слои</h3>
+        <div class="layers-panel">
+          <div class="layers-toolbar">
+             <button class="layer-tool" id="btnLayerAdd" title="Новый слой">＋</button>
+             <div class="layer-delete-wrap">
+               <button class="layer-tool" id="btnLayerDelete" title="Удалить слой">×</button>
+               <div class="delete-confirm-popover hidden" id="deleteConfirmPopover" role="dialog" aria-label="Подтверждение удаления слоя">
+                 <span class="prompt">Точно?</span>
+                 <button class="confirm-delete" id="btnConfirmDelete" title="Удалить" aria-label="Удалить">✓</button>
+                 <button id="btnCancelDelete" title="Отмена" aria-label="Отмена">×</button>
+               </div>
+             </div>
+             <button class="layer-tool" id="btnLayerDuplicate" title="Дублировать слой">⧉</button>
+             <button class="layer-tool" id="btnLayerMergeDown" title="Слить с нижним слоем" aria-label="Слить с нижним слоем">🤝</button>
+             <button class="layer-tool" id="btnLayerUp" title="Поднять слой">↑</button>
+             <button class="layer-tool" id="btnLayerDown" title="Опустить слой">↓</button>
+           </div>
+           <div class="layer-opacity-row">
+             <label for="layerOpacity">Непр.</label>
+             <input type="range" id="layerOpacity" min="0" max="100" value="100">
+           </div>
+           <div class="layer-list" id="layerList"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="mobileBlocker" class="mobile-blocker"><div class="mobile-blocker-box"><div class="mobile-blocker-title">ой ой беда</div><div>с таким маленьким экраном работать не будет <span id="mobileEmoji"></span></div></div></div>
+
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal">
+    <h2>Новый холст</h2>
+    <p class="sub">Выберите пропорции или задайте произвольный размер.</p>
+
+    <h4>Пресеты</h4>
+    <div class="preset-grid" id="presetGrid"></div>
+
+    <h4>Свой размер</h4>
+    <div class="custom-row">
+      <div class="field">
+        <label>Ширина, px</label>
+        <input type="number" id="customWidth" min="16" max="8000" value="1600">
+      </div>
+      <button class="swap-btn" id="swapWH" title="Поменять местами">⇄</button>
+      <div class="field">
+        <label>Высота, px</label>
+        <input type="number" id="customHeight" min="16" max="8000" value="1000">
+      </div>
+    </div>
+
+    <h4>Фон</h4>
+    <div class="bg-row">
+      <div class="bg-color-box">
+        <div class="fill" id="bgColorFill"></div>
+        <input type="color" id="bgColorPicker" value="#ffffff">
+      </div>
+      <label class="checkbox-row">
+        <input type="checkbox" id="bgTransparent">
+        Прозрачный фон
+      </label>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn" id="btnCancelModal">Отмена</button>
+      <button class="btn primary" id="btnCreateCanvas">Создать холст</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ================= DOM refs ================= */
+  const viewport = document.getElementById('viewport');
+  const canvasStage = document.getElementById('canvasStage');
+  const mainCanvas = document.getElementById('mainCanvas');
+  const overlayCanvas = document.getElementById('overlayCanvas');
+  let ctx = mainCanvas.getContext('2d', {willReadFrequently:true});
+  let overlayCtx = overlayCanvas.getContext('2d');
+
+  const zoomReadout = document.getElementById('zoomReadout');
+  const radiusReadout = document.getElementById('radiusReadout') || {textContent:''};
+  const toolStatus = document.getElementById('toolStatus') || {textContent:''};
+
+  const modalBackdrop = document.getElementById('modalBackdrop');
+  const presetGrid = document.getElementById('presetGrid');
+  const customWidth = document.getElementById('customWidth');
+  const customHeight = document.getElementById('customHeight');
+  const bgColorPicker = document.getElementById('bgColorPicker');
+  const bgColorFill = document.getElementById('bgColorFill');
+  const bgTransparent = document.getElementById('bgTransparent');
+
+  const colorPicker = document.getElementById('colorPicker');
+  const hexInput = document.getElementById('hexInput');
+  const currentColorFill = document.getElementById('currentColorFill');
+  const swatchGrid = document.getElementById('swatchGrid');
+  const btnEraser = document.getElementById('btnEraser');
+  let eraserEnabled = false;
+
+  /* ================= helpers ================= */
+  function clamp(v,min,max){return Math.max(min,Math.min(max,v));}
+  function hexToRgba(hex, alpha){
+    hex = hex.replace('#','');
+    if(hex.length===3) hex = hex.split('').map(c=>c+c).join('');
+    const r=parseInt(hex.substring(0,2),16), g=parseInt(hex.substring(2,4),16), b=parseInt(hex.substring(4,6),16);
+    return `rgba(${r},${g},${b},${alpha})`;
+  }
+  function isValidHex(h){ return /^#?[0-9a-fA-F]{6}$/.test(h); }
+  function normalizeHex(h){ return h.startsWith('#') ? h.toLowerCase() : ('#'+h.toLowerCase()); }
+
+  /* ================= color state ================= */
+  let currentColor = '#1a1a1a';
+  function setCurrentColor(hex, syncInputs){
+    currentColor = normalizeHex(hex);
+    currentColorFill.style.background = currentColor;
+    if(syncInputs !== false){
+      colorPicker.value = currentColor;
+      hexInput.value = currentColor.toUpperCase();
+    }
+  }
+  setCurrentColor('#1a1a1a');
+
+  colorPicker.addEventListener('input', ()=> setCurrentColor(colorPicker.value));
+  hexInput.addEventListener('change', ()=>{
+    if(isValidHex(hexInput.value)) setCurrentColor(hexInput.value);
+    else hexInput.value = currentColor.toUpperCase();
+  });
+
+  function setEraserEnabled(enabled){
+    eraserEnabled=!!enabled;
+    btnEraser?.classList.toggle('active',eraserEnabled);
+    btnEraser?.setAttribute('aria-pressed',eraserEnabled?'true':'false');
+    if(toolState!=='idle') refreshOverlayForState();
+  }
+  btnEraser?.addEventListener('click',e=>{
+    e.preventDefault();
+    e.stopPropagation();
+    setEraserEnabled(!eraserEnabled);
+  });
+
+  bgColorFill.style.background = bgColorPicker.value;
+  bgColorPicker.addEventListener('input', ()=> bgColorFill.style.background = bgColorPicker.value);
+
+  /* ================= saved swatches ================= */
+  const SWATCHES_PER_PAGE = 24; // 8 × 3
+  const SWATCH_PAGE_COUNT = 5;
+  const SWATCH_COUNT = SWATCHES_PER_PAGE * SWATCH_PAGE_COUNT;
+  const swatches = new Array(SWATCH_COUNT).fill(null);
+  let swatchPage = 0;
+  try{
+    const saved = JSON.parse(localStorage.getItem('sector_saved_colors_v1') || 'null');
+    if(Array.isArray(saved)) saved.slice(0,SWATCH_COUNT).forEach((v,i)=>{ if(typeof v==='string' && /^#[0-9a-fA-F]{6}$/.test(v)) swatches[i]=v.toLowerCase(); });
+  }catch(_e){}
+
+  function persistSwatches(){
+    try{ localStorage.setItem('sector_saved_colors_v1', JSON.stringify(swatches)); }catch(_e){}
+  }
+  const swatchPrev = document.getElementById('swatchPrev');
+  const swatchNext = document.getElementById('swatchNext');
+  const swatchPageLabel = document.getElementById('swatchPageLabel');
+
+  function renderSwatches(){
+    swatchGrid.innerHTML = '';
+    const start = swatchPage * SWATCHES_PER_PAGE;
+    const end = start + SWATCHES_PER_PAGE;
+    for(let i=start;i<end;i++){
+      const el = document.createElement('div');
+      el.className = 'swatch' + (swatches[i] ? '' : ' empty');
+      if(swatches[i]){
+        const fill = document.createElement('div');
+        fill.className = 'fill';
+        fill.style.background = swatches[i];
+        el.appendChild(fill);
+      }
+      el.title = swatches[i] ? swatches[i] : 'Пусто — ПКМ, чтобы сохранить текущий цвет';
+      el.addEventListener('click', ()=>{
+        if(swatches[i]) setCurrentColor(swatches[i]);
+      });
+      el.addEventListener('contextmenu', (e)=>{
+        e.preventDefault();
+        swatches[i] = currentColor;
+        persistSwatches();
+        renderSwatches();
+      });
+      swatchGrid.appendChild(el);
+    }
+    swatchPageLabel.textContent = `${swatchPage + 1} / ${SWATCH_PAGE_COUNT}`;
+    swatchPrev.disabled = swatchPage === 0;
+    swatchNext.disabled = swatchPage === SWATCH_PAGE_COUNT - 1;
+  }
+
+  swatchPrev.addEventListener('click', ()=>{
+    if(swatchPage > 0){ swatchPage--; renderSwatches(); }
+  });
+  swatchNext.addEventListener('click', ()=>{
+    if(swatchPage < SWATCH_PAGE_COUNT - 1){ swatchPage++; renderSwatches(); }
+  });
+  renderSwatches();
+
+  /* ================= presets ================= */
+  const presets = [
+    {label:'Квадрат', ratio:'1:1', w:2000, h:2000},
+    {label:'Широкий', ratio:'16:9', w:1920, h:1080},
+    {label:'Вертикальный', ratio:'9:16', w:1080, h:1920},
+    {label:'Фото альбом', ratio:'4:3', w:1600, h:1200},
+    {label:'Фото портрет', ratio:'3:4', w:1200, h:1600},
+    {label:'A4', ratio:'297:210', w:1754, h:1240},
+  ];
+  let selectedPreset = null;
+
+  function renderPresets(){
+    presetGrid.innerHTML = '';
+    presets.forEach((p, idx)=>{
+      const card = document.createElement('div');
+      card.className = 'preset-card' + (selectedPreset===idx ? ' selected' : '');
+      const shape = document.createElement('div');
+      shape.className = 'preset-shape';
+      const maxDim = 40;
+      let sw, sh;
+      if(p.w >= p.h){ sw = maxDim; sh = Math.round(maxDim * p.h/p.w); }
+      else { sh = maxDim; sw = Math.round(maxDim * p.w/p.h); }
+      shape.style.width = sw+'px';
+      shape.style.height = sh+'px';
+      const label = document.createElement('div');
+      label.className = 'preset-label';
+      label.textContent = p.label;
+      const dims = document.createElement('div');
+      dims.className = 'preset-dims';
+      dims.textContent = `${p.w} × ${p.h}`;
+      card.appendChild(shape);
+      card.appendChild(label);
+      card.appendChild(dims);
+      card.addEventListener('click', ()=>{
+        selectedPreset = idx;
+        customWidth.value = p.w;
+        customHeight.value = p.h;
+        renderPresets();
+      });
+      presetGrid.appendChild(card);
+    });
+  }
+  renderPresets();
+
+  customWidth.addEventListener('input', ()=>{ selectedPreset=null; renderPresets(); });
+  customHeight.addEventListener('input', ()=>{ selectedPreset=null; renderPresets(); });
+  document.getElementById('swapWH').addEventListener('click', ()=>{
+    const w = customWidth.value; customWidth.value = customHeight.value; customHeight.value = w;
+    selectedPreset = null; renderPresets();
+  });
+
+  /* ================= modal open/close ================= */
+  function openModal(){ modalBackdrop.classList.remove('hidden'); }
+  function closeModal(){ modalBackdrop.classList.add('hidden'); }
+  const deleteConfirmPopover=document.getElementById('deleteConfirmPopover');
+  const btnLayerDelete=document.getElementById('btnLayerDelete');
+  const btnCancelDelete=document.getElementById('btnCancelDelete');
+  const btnConfirmDelete=document.getElementById('btnConfirmDelete');
+  let deleteConfirmLayer=null;
+  function openDeleteConfirm(layer){
+    deleteConfirmLayer=layer;
+    deleteConfirmPopover.classList.remove('hidden');
+  }
+  function closeDeleteConfirm(){
+    deleteConfirmPopover.classList.add('hidden');
+    deleteConfirmLayer=null;
+  }
+  btnCancelDelete?.addEventListener('click',e=>{ e.preventDefault(); e.stopPropagation(); closeDeleteConfirm(); });
+  btnConfirmDelete?.addEventListener('click',e=>{
+    e.preventDefault(); e.stopPropagation();
+    const layer=deleteConfirmLayer;
+    closeDeleteConfirm();
+    if(layer) performDeleteLayer(layer);
+  });
+  document.addEventListener('pointerdown',e=>{
+    if(deleteConfirmPopover.classList.contains('hidden')) return;
+    if(btnLayerDelete?.contains(e.target) || deleteConfirmPopover.contains(e.target)) return;
+    closeDeleteConfirm();
+  });
+  const btnHelp = document.getElementById('btnHelp');
+  const helpPanel = document.getElementById('helpPanel');
+  function toggleHelp(force){
+    const shouldOpen = typeof force === 'boolean' ? force : helpPanel.classList.contains('hidden');
+    helpPanel.classList.toggle('hidden', !shouldOpen);
+  }
+  btnHelp?.addEventListener('pointerdown',e=>{ e.stopPropagation(); });
+  btnHelp?.addEventListener('click',e=>{ e.stopPropagation(); toggleHelp(); });
+
+  document.getElementById('btnNewCanvas').addEventListener('click', openModal);
+  document.getElementById('btnCancelModal').addEventListener('click', ()=>{
+    if(hasCanvas) closeModal();
+  });
+
+  /* ================= view (pan/zoom) state ================= */
+  const view = {panX:0, panY:0, zoom:1};
+  function applyTransform(){
+    canvasStage.style.transform = `translate(${view.panX}px, ${view.panY}px) scale(${view.zoom})`;
+    zoomReadout.textContent = Math.round(view.zoom*100) + '%';
+  }
+  function zoomAt(clientX, clientY, factor){
+    const rect = viewport.getBoundingClientRect();
+    const mx = clientX - rect.left, my = clientY - rect.top;
+    const newZoom = clamp(view.zoom*factor, 0.02, 32);
+    const cx = (mx - view.panX)/view.zoom;
+    const cy = (my - view.panY)/view.zoom;
+    view.zoom = newZoom;
+    view.panX = mx - cx*newZoom;
+    view.panY = my - cy*newZoom;
+    applyTransform();
+  }
+  function fitToScreen(){
+    if(!hasCanvas) return;
+    const rect = viewport.getBoundingClientRect();
+    const cw = mainCanvas.width, ch = mainCanvas.height;
+    const z = Math.min(rect.width/cw, rect.height/ch) * 0.92;
+    view.zoom = clamp(z, 0.02, 32);
+    view.panX = (rect.width - cw*view.zoom)/2;
+    view.panY = (rect.height - ch*view.zoom)/2;
+    applyTransform();
+  }
+  document.getElementById('btnZoomIn').addEventListener('click', ()=>{
+    const r = viewport.getBoundingClientRect();
+    zoomAt(r.left+r.width/2, r.top+r.height/2, 1.25);
+  });
+  document.getElementById('btnZoomOut').addEventListener('click', ()=>{
+    const r = viewport.getBoundingClientRect();
+    zoomAt(r.left+r.width/2, r.top+r.height/2, 1/1.25);
+  });
+  document.getElementById('btnFit').addEventListener('click', fitToScreen);
+
+  /* ================= layers / document ================= */
+  let hasCanvas = false;
+  let layers = [];
+  let activeLayerId = null;
+  let nextLayerId = 1;
+  const layerList = document.getElementById('layerList');
+  const layerOpacity = document.getElementById('layerOpacity');
+  const MAX_HISTORY = 20;
+
+  let projectSaveTimer = null;
+  let projectSaveInFlight = false;
+  let projectSaveQueued = false;
+
+  function scheduleProjectSave(delay=700){
+    clearTimeout(projectSaveTimer);
+    projectSaveTimer = setTimeout(()=>saveProjectNow(), delay);
+  }
+
+  function openProjectDB(){
+    return new Promise((resolve,reject)=>{
+      if(!window.indexedDB){ reject(new Error('IndexedDB unavailable')); return; }
+      const req=indexedDB.open('sector_editor_db_v1',1);
+      req.onupgradeneeded=()=>{ if(!req.result.objectStoreNames.contains('project')) req.result.createObjectStore('project'); };
+      req.onsuccess=()=>resolve(req.result);
+      req.onerror=()=>reject(req.error || new Error('IndexedDB error'));
+    });
+  }
+
+  function idbPut(key,value){
+    return openProjectDB().then(db=>new Promise((resolve,reject)=>{
+      const tx=db.transaction('project','readwrite');
+      tx.objectStore('project').put(value,key);
+      tx.oncomplete=()=>{db.close();resolve();};
+      tx.onerror=()=>{db.close();reject(tx.error || new Error('IndexedDB write error'));};
+    }));
+  }
+
+  function idbGet(key){
+    return openProjectDB().then(db=>new Promise((resolve,reject)=>{
+      const tx=db.transaction('project','readonly');
+      const req=tx.objectStore('project').get(key);
+      req.onsuccess=()=>resolve(req.result);
+      req.onerror=()=>{db.close();reject(req.error || new Error('IndexedDB read error'));};
+      tx.oncomplete=()=>db.close();
+    }));
+  }
+
+  async function canvasToBlob(canvas){
+    return new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('Canvas blob failed')),'image/png'));
+  }
+
+  async function saveProjectNow(){
+    if(projectSaveInFlight){ projectSaveQueued=true; return; }
+    if(!hasCanvas || !layers.length) return;
+    projectSaveInFlight=true;
+    try{
+      const layerData=[];
+      for(const layer of layers){
+        layerData.push({
+          id:layer.id,name:layer.name,visible:layer.visible,opacity:layer.opacity,
+          blob:await canvasToBlob(layer.canvas),
+          isBackground:layer.isBackground===true, bgColor:layer.bgColor || '#ffffff' 
+        });
+      }
+      await idbPut('current',{
+        version:1, width:mainCanvas.width,height:mainCanvas.height,
+        activeLayerId, nextLayerId, currentColor, fillMode,
+        falloffPoints:falloffPoints.map(p=>({x:p.x,y:p.y})),
+        layers:layerData, savedAt:Date.now()
+      });
+    }catch(_e){
+      // Persistence is optional; the editor remains usable if storage is unavailable.
+    }finally{
+      projectSaveInFlight=false;
+      if(projectSaveQueued){ projectSaveQueued=false; scheduleProjectSave(50); }
+    }
+  }
+
+  async function restoreProject(){
+    try{
+      const data=await idbGet('current');
+      if(!data || !Array.isArray(data.layers) || !data.layers.length) return false;
+      mainCanvas.width=data.width; mainCanvas.height=data.height;
+      overlayCanvas.width=data.width; overlayCanvas.height=data.height;
+      canvasStage.style.width=data.width+'px'; canvasStage.style.height=data.height+'px';
+      overlayCtx=overlayCanvas.getContext('2d');
+      layers=[];
+      for(const item of data.layers){
+        const canvas=document.createElement('canvas');
+        canvas.width=data.width; canvas.height=data.height;
+        const layerCtx=canvas.getContext('2d',{willReadFrequently:true});
+        if(item.blob){
+          const bitmap=await createImageBitmap(item.blob);
+          layerCtx.drawImage(bitmap,0,0);
+          bitmap.close();
+        }
+        const layer={id:item.id,name:item.name||'Слой',canvas,ctx:layerCtx,visible:item.visible!==false,opacity:typeof item.opacity==='number'?item.opacity:1,isBackground:item.isBackground===true || item.name==='Фон',bgColor:item.bgColor || '#ffffff',history:[],historyIndex:-1};
+        layer.history=[layer.ctx.getImageData(0,0,canvas.width,canvas.height)];
+        layer.historyIndex=0;
+        layers.push(layer);
+      }
+      let background=layers.find(l=>l.isBackground);
+      if(!background){
+        background=createLayer('Фон');
+        background.isBackground=true;
+        background.bgColor='#ffffff';
+        layers.unshift(background);
+      }
+      nextLayerId=Math.max(Number(data.nextLayerId)||1,...layers.map(l=>Number(l.id)||0))+1;
+      activeLayerId=layers.some(l=>l.id===data.activeLayerId)?data.activeLayerId:layers[layers.length-1].id;
+      if(Array.isArray(data.falloffPoints) && data.falloffPoints.length>=2) falloffPoints=data.falloffPoints.map(p=>({x:clamp(Number(p.x),0,1),y:clamp(Number(p.y),0,1)}));
+      if(typeof data.currentColor==='string' && /^#[0-9a-fA-F]{6}$/.test(data.currentColor)) setCurrentColor(data.currentColor);
+      if(typeof data.fillMode==='string' && fillModes.some(m=>m.id===data.fillMode)) fillMode=data.fillMode;
+      hasCanvas=true;
+      syncActiveContext(); renderLayers(); renderLayerList(); updateHistoryButtonsForLayer(getActiveLayer());
+      drawFalloffCurve(); renderFillModes(); fitToScreen(); closeModal();
+      return true;
+    }catch(_e){ return false; }
+  }
+
+  function createLayer(name, bgHex=null){
+    const canvas = document.createElement('canvas');
+    canvas.width = mainCanvas.width;
+    canvas.height = mainCanvas.height;
+    const layerCtx = canvas.getContext('2d', {willReadFrequently:true});
+    if(bgHex){ layerCtx.fillStyle = bgHex; layerCtx.fillRect(0,0,canvas.width,canvas.height); }
+    const layer = {
+      id: nextLayerId++, name, canvas, ctx: layerCtx,
+      visible:true, opacity:1,
+      isBackground: name === 'Фон',
+      bgColor: bgHex || '#ffffff',
+      history: [], historyIndex: -1
+    };
+    // Начальное состояние слоя — первая точка Undo-истории.
+    layer.history.push(layer.ctx.getImageData(0,0,canvas.width,canvas.height));
+    layer.historyIndex = 0;
+    return layer;
+  }
+
+  function getActiveLayer(){ return layers.find(l=>l.id===activeLayerId) || null; }
+
+  function syncActiveContext(){
+    const layer = getActiveLayer();
+    ctx = layer ? layer.ctx : mainCanvas.getContext('2d', {willReadFrequently:true});
+  }
+
+  function renderLayers(){
+    if(!mainCanvas.width || !mainCanvas.height) return;
+    const compositeCtx = mainCanvas.getContext('2d', {willReadFrequently:true});
+    compositeCtx.clearRect(0,0,mainCanvas.width,mainCanvas.height);
+    compositeCtx.save();
+    compositeCtx.globalCompositeOperation = 'source-over';
+    compositeCtx.globalAlpha = 1;
+    for(const layer of layers){
+      if(!layer.visible || layer.opacity <= 0) continue;
+      compositeCtx.globalAlpha = layer.opacity;
+      compositeCtx.drawImage(layer.canvas,0,0);
+    }
+    compositeCtx.restore();
+    syncActiveContext();
+  }
+
+  function updateHistoryButtonsForLayer(layer){
+    const canUndo = !!layer && layer.historyIndex > 0;
+    const canRedo = !!layer && layer.historyIndex < layer.history.length - 1;
+    document.getElementById('btnUndo').disabled = !canUndo;
+    document.getElementById('btnRedo').disabled = !canRedo;
+  }
+
+  function updateLayerToolStates(){
+    const active=getActiveLayer();
+    const isBg=!!active?.isBackground;
+    const idx=active ? layers.findIndex(l=>l.id===active.id) : -1;
+    const deleteBtn=document.getElementById('btnLayerDelete');
+    const mergeBtn=document.getElementById('btnLayerMergeDown');
+    const upBtn=document.getElementById('btnLayerUp');
+    const downBtn=document.getElementById('btnLayerDown');
+    if(deleteBtn) deleteBtn.disabled=isBg || layers.length<=1;
+    if(mergeBtn) mergeBtn.disabled=isBg || idx<=0;
+    if(upBtn) upBtn.disabled=idx<0 || idx>=layers.length-1;
+    if(downBtn) downBtn.disabled=idx<0 || idx<=0;
+  }
+
+  function renderLayerList(){
+    if(!layerList) return;
+    layerList.innerHTML='';
+    [...layers].reverse().forEach(layer=>{
+      const row=document.createElement('div');
+      row.className='layer-row'+(layer.id===activeLayerId?' selected':'');
+
+      const vis=document.createElement('button');
+      vis.className='layer-vis';
+      vis.textContent=layer.visible?'●':'○';
+      vis.title=layer.visible?'Скрыть слой':'Показать слой';
+      vis.addEventListener('click',e=>{
+        e.stopPropagation();
+        layer.visible=!layer.visible;
+        renderLayerList();
+        renderLayers();
+        scheduleProjectSave();
+      });
+
+      const text=document.createElement('div');
+      text.className='layer-text';
+      const nameEl=document.createElement('div');
+      nameEl.className='layer-name';
+      nameEl.textContent=layer.name;
+      const meta=document.createElement('div');
+      meta.className='layer-meta';
+      meta.textContent=`${Math.round(layer.opacity*100)}%`;
+      text.append(nameEl,meta);
+
+      row.append(vis,text);
+      if(layer.isBackground){
+        const bgBtn=document.createElement('button');
+        bgBtn.className='layer-bg-btn';
+        bgBtn.title='Цвет фона';
+        bgBtn.style.background = layer.bgColor || '#ffffff';
+        bgBtn.innerHTML='<input type="color" value="'+(layer.bgColor || '#ffffff')+'" aria-label="Цвет фона">';
+        const bgInput=bgBtn.querySelector('input');
+        bgInput.addEventListener('click',e=>e.stopPropagation());
+        bgInput.addEventListener('input',e=>{
+          layer.bgColor=e.target.value.toLowerCase();
+          bgBtn.style.background=layer.bgColor;
+          layer.ctx.clearRect(0,0,layer.canvas.width,layer.canvas.height);
+          layer.ctx.fillStyle=layer.bgColor;
+          layer.ctx.fillRect(0,0,layer.canvas.width,layer.canvas.height);
+          renderLayers();
+          scheduleProjectSave();
+        });
+        bgInput.addEventListener('change',()=>{
+          pushHistory();
+          renderLayerList();
+          renderLayers();
+          scheduleProjectSave();
+        });
+        row.appendChild(bgBtn);
+      }else{
+        const spacer=document.createElement('div');
+        spacer.style.width='22px';
+        spacer.style.height='22px';
+        row.appendChild(spacer);
+      }
+      let clickTimer = null;
+      const selectLayer = ()=>{
+        activeLayerId=layer.id;
+        syncActiveContext();
+        if(layerOpacity) layerOpacity.value=Math.round(layer.opacity*100);
+        renderLayerList();
+        updateHistoryButtonsForLayer(layer);
+        scheduleProjectSave();
+      };
+      row.addEventListener('click',(e)=>{
+        if(e.target===vis) return;
+        if(clickTimer) clearTimeout(clickTimer);
+        clickTimer = setTimeout(()=>{ clickTimer=null; selectLayer(); }, 220);
+      });
+
+      const beginRename=()=>{
+        if(clickTimer){ clearTimeout(clickTimer); clickTimer=null; }
+        const input=document.createElement('input');
+        input.type='text';
+        input.value=layer.name;
+        input.className='layer-name-input';
+        nameEl.replaceWith(input);
+        input.focus();
+        input.select();
+
+        let finished=false;
+        const finish=()=>{
+          if(finished) return;
+          finished=true;
+          const value=input.value.trim();
+          layer.name=value || layer.name || 'Слой';
+          renderLayerList();
+          scheduleProjectSave();
+        };
+        input.addEventListener('keydown',ev=>{
+          if(ev.key==='Enter'){ ev.preventDefault(); finish(); }
+          else if(ev.key==='Escape'){ ev.preventDefault(); input.value=layer.name; finish(); }
+        });
+        input.addEventListener('blur',finish);
+      };
+      nameEl.addEventListener('dblclick',(e)=>{ e.stopPropagation(); beginRename(); });
+      row.addEventListener('dblclick',(e)=>{
+        if(e.target===vis || e.target===nameEl || e.target.classList.contains('layer-meta')) return;
+        e.stopPropagation();
+      });
+
+      layerList.appendChild(row);
+    });
+
+    const active=getActiveLayer();
+    if(active && layerOpacity) layerOpacity.value=Math.round(active.opacity*100);
+    updateLayerToolStates();
+  }
+
+  function addLayer(name='Слой '+(layers.length+1)){
+    const layer=createLayer(name);
+    const idx=layers.findIndex(l=>l.id===activeLayerId);
+    if(idx<0) layers.push(layer); else layers.splice(idx+1,0,layer);
+    activeLayerId=layer.id;
+    syncActiveContext(); renderLayerList(); renderLayers();
+    updateHistoryButtonsForLayer(layer);
+    scheduleProjectSave();
+  }
+
+  function duplicateActiveLayer(){
+    const src=getActiveLayer(); if(!src) return;
+    const copy=createLayer(src.name+' копия');
+    copy.ctx.clearRect(0,0,copy.canvas.width,copy.canvas.height);
+    copy.ctx.drawImage(src.canvas,0,0);
+    copy.visible=src.visible; copy.opacity=src.opacity;
+    copy.isBackground=false; copy.bgColor=src.bgColor;
+    // Для дубликата первая история должна соответствовать скопированному содержимому.
+    copy.history=[copy.ctx.getImageData(0,0,copy.canvas.width,copy.canvas.height)];
+    copy.historyIndex=0;
+    const idx=layers.findIndex(l=>l.id===src.id);
+    layers.splice(idx+1,0,copy);
+    activeLayerId=copy.id;
+    syncActiveContext(); renderLayerList(); renderLayers();
+    updateHistoryButtonsForLayer(copy);
+    scheduleProjectSave();
+  }
+
+  function mergeActiveLayerDown(){
+    const idx=layers.findIndex(l=>l.id===activeLayerId);
+    if(idx<=0) return;
+    const top=layers[idx];
+    const below=layers[idx-1];
+    if(top.isBackground || !below) return;
+    if(top.opacity>0 && top.visible){
+      below.ctx.save();
+      below.ctx.globalAlpha=top.opacity;
+      below.ctx.globalCompositeOperation='source-over';
+      below.ctx.drawImage(top.canvas,0,0);
+      below.ctx.restore();
+    }
+    below.history=[below.ctx.getImageData(0,0,below.canvas.width,below.canvas.height)];
+    below.historyIndex=0;
+    layers.splice(idx,1);
+    activeLayerId=below.id;
+    syncActiveContext();
+    renderLayerList();
+    renderLayers();
+    updateHistoryButtonsForLayer(below);
+    scheduleProjectSave();
+  }
+
+  function deleteActiveLayer(){
+     const layer=getActiveLayer();
+     if(!layer || layer.isBackground || layers.length<=1) return;
+     openDeleteConfirm(layer);
+  }
+
+  function performDeleteLayer(layer){
+     const idx=layers.findIndex(l=>l.id===layer.id);
+     if(idx<0 || layer.isBackground || layers.length<=1) return;
+     layers.splice(idx,1);
+     activeLayerId=layers[Math.max(0,idx-1)].id;
+     const active=getActiveLayer();
+     syncActiveContext(); renderLayerList(); renderLayers();
+     updateHistoryButtonsForLayer(active); scheduleProjectSave();
+  }
+
+  function moveActiveLayer(dir){
+    const idx=layers.findIndex(l=>l.id===activeLayerId);
+    const ni=idx+dir; if(idx<0 || ni<0 || ni>=layers.length) return;
+    [layers[idx],layers[ni]]=[layers[ni],layers[idx]];
+    renderLayerList(); renderLayers();
+    scheduleProjectSave();
+  }
+
+  layerOpacity?.addEventListener('input',()=>{
+    const layer=getActiveLayer(); if(!layer) return;
+    layer.opacity=Number(layerOpacity.value)/100;
+    renderLayerList(); renderLayers();
+    scheduleProjectSave();
+  });
+  document.getElementById('btnLayerAdd')?.addEventListener('click',()=>{ closeDeleteConfirm(); addLayer(); });
+  document.getElementById('btnLayerDuplicate')?.addEventListener('click',()=>{ closeDeleteConfirm(); duplicateActiveLayer(); });
+  document.getElementById('btnLayerMergeDown')?.addEventListener('click',()=>{ closeDeleteConfirm(); mergeActiveLayerDown(); });
+  document.getElementById('btnLayerUp')?.addEventListener('click',()=>{ closeDeleteConfirm(); moveActiveLayer(1); });
+  document.getElementById('btnLayerDown')?.addEventListener('click',()=>{ closeDeleteConfirm(); moveActiveLayer(-1); });
+  document.getElementById('btnLayerDelete')?.addEventListener('click',deleteActiveLayer);
+
+  function createCanvas(width, height, bgHex /* null = transparent */){
+    width = clamp(Math.round(width), 16, 8000);
+    height = clamp(Math.round(height), 16, 8000);
+
+    mainCanvas.width = width;
+    mainCanvas.height = height;
+    overlayCanvas.width = width;
+    overlayCanvas.height = height;
+    canvasStage.style.width = width+'px';
+    canvasStage.style.height = height+'px';
+
+    overlayCtx = overlayCanvas.getContext('2d');
+    layers = []; nextLayerId = 1; activeLayerId = null;
+    const bgLayer=createLayer('Фон', bgHex);
+    bgLayer.isBackground=true;
+    bgLayer.bgColor=bgHex || '#ffffff';
+    layers.push(bgLayer);
+    const paintLayer=createLayer('Слой 1');
+    layers.push(paintLayer); activeLayerId=paintLayer.id;
+    syncActiveContext();
+    history = []; historyIndex = -1;
+    renderLayerList(); renderLayers();
+    updateHistoryButtonsForLayer(getActiveLayer());
+
+    hasCanvas = true;
+    resetToolState();
+    fitToScreen();
+    closeModal();
+    scheduleProjectSave(150);
+  }
+
+  document.getElementById('btnCreateCanvas').addEventListener('click', ()=>{
+    const w = parseInt(customWidth.value, 10) || 1600;
+    const h = parseInt(customHeight.value, 10) || 1000;
+    const bg = bgTransparent.checked ? null : bgColorPicker.value;
+    createCanvas(w, h, bg);
+  });
+
+  /* ================= history (undo/redo) ================= */
+  // История хранится отдельно у каждого слоя. Переключение слоя больше не ломает
+  // Undo/Redo и не требует копирования истории остальных слоёв.
+  let history = [];       // kept for backward compatibility with old state references
+  let historyIndex = -1;  // actual history lives in layer.history/layer.historyIndex
+
+  function pushHistory(){
+    const layer=getActiveLayer();
+    if(!layer) return;
+    layer.history=layer.history.slice(0, layer.historyIndex+1);
+    layer.history.push(layer.ctx.getImageData(0,0,layer.canvas.width,layer.canvas.height));
+    if(layer.history.length > MAX_HISTORY) layer.history.shift();
+    layer.historyIndex=layer.history.length-1;
+    updateHistoryButtonsForLayer(layer);
+  }
+
+  function undo(){
+    const layer=getActiveLayer();
+    if(!layer || layer.historyIndex<=0) return;
+    layer.historyIndex--;
+    layer.ctx.putImageData(layer.history[layer.historyIndex],0,0);
+    renderLayers();
+    updateHistoryButtonsForLayer(layer);
+    scheduleProjectSave();
+  }
+
+  function redo(){
+    const layer=getActiveLayer();
+    if(!layer || layer.historyIndex>=layer.history.length-1) return;
+    layer.historyIndex++;
+    layer.ctx.putImageData(layer.history[layer.historyIndex],0,0);
+    renderLayers();
+    updateHistoryButtonsForLayer(layer);
+  }
+
+  function updateUndoRedoButtons(){
+    updateHistoryButtonsForLayer(getActiveLayer());
+  }
+  document.getElementById('btnUndo').addEventListener('click', undo);
+  document.getElementById('btnRedo').addEventListener('click', redo);
+
+  /* ================= project export/import ================= */
+  const projectImportInput=document.getElementById('projectImportInput');
+  const btnImportProject=document.getElementById('btnImportProject');
+  const btnExportProject=document.getElementById('btnExportProject');
+
+  function downloadBlob(blob,filename){
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;
+    a.download=filename;
+    a.click();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+  }
+
+  async function exportProject(){
+    if(!hasCanvas || !layers.length) return;
+    const project={
+      format:'radiart',
+      version:1,
+      width:mainCanvas.width,
+      height:mainCanvas.height,
+      activeLayerId,
+      nextLayerId,
+      currentColor,
+      fillMode,
+      eraserEnabled,
+      falloffPoints:falloffPoints.map(p=>({x:p.x,y:p.y})),
+      swatches:swatches.slice(),
+      layers:layers.map(layer=>({
+        id:layer.id,
+        name:layer.name,
+        visible:layer.visible,
+        opacity:layer.opacity,
+        isBackground:layer.isBackground===true,
+        bgColor:layer.bgColor||'#ffffff',
+        image:layer.canvas.toDataURL('image/png')
+      }))
+    };
+    downloadBlob(new Blob([JSON.stringify(project)],{type:'application/json'}),'рисулька.radiart');
+  }
+
+  function dataUrlToImage(dataUrl){
+    return new Promise((resolve,reject)=>{
+      const img=new Image();
+      img.onload=()=>resolve(img);
+      img.onerror=()=>reject(new Error('Не удалось загрузить слой проекта'));
+      img.src=dataUrl;
+    });
+  }
+
+  async function importProjectData(data){
+    if(!data || data.format!=='radiart' || !Array.isArray(data.layers) || !data.layers.length){
+      throw new Error('Неверный формат Radiart');
+    }
+    const width=clamp(Math.round(Number(data.width)||0),16,8000);
+    const height=clamp(Math.round(Number(data.height)||0),16,8000);
+    if(!width || !height) throw new Error('Некорректный размер холста');
+
+    mainCanvas.width=width;
+    mainCanvas.height=height;
+    overlayCanvas.width=width;
+    overlayCanvas.height=height;
+    canvasStage.style.width=width+'px';
+    canvasStage.style.height=height+'px';
+    overlayCtx=overlayCanvas.getContext('2d');
+    layers=[];
+    nextLayerId=1;
+
+    for(const item of data.layers){
+      const canvas=document.createElement('canvas');
+      canvas.width=width;
+      canvas.height=height;
+      const layerCtx=canvas.getContext('2d',{willReadFrequently:true});
+      if(item.image){
+        const img=await dataUrlToImage(item.image);
+        layerCtx.drawImage(img,0,0,width,height);
+      }
+      const layer={
+        id:Number(item.id)||nextLayerId++,
+        name:item.name||'Слой',
+        canvas,ctx:layerCtx,
+        visible:item.visible!==false,
+        opacity:typeof item.opacity==='number'?clamp(item.opacity,0,1):1,
+        isBackground:item.isBackground===true || item.name==='Фон',
+        bgColor:item.bgColor||'#ffffff',
+        history:[],
+        historyIndex:-1
+      };
+      layer.history=[layer.ctx.getImageData(0,0,width,height)];
+      layer.historyIndex=0;
+      layers.push(layer);
+    }
+
+    if(!layers.some(l=>l.isBackground)){
+      const background=createLayer('Фон');
+      background.isBackground=true;
+      background.bgColor='#ffffff';
+      layers.unshift(background);
+    }
+
+    nextLayerId=Math.max(Number(data.nextLayerId)||1,...layers.map(l=>Number(l.id)||0))+1;
+    activeLayerId=layers.some(l=>l.id===data.activeLayerId)?data.activeLayerId:layers[layers.length-1].id;
+
+    if(Array.isArray(data.falloffPoints) && data.falloffPoints.length>=2){
+      falloffPoints=data.falloffPoints.map(p=>({x:clamp(Number(p.x),0,1),y:clamp(Number(p.y),0,1)}));
+    }
+    if(typeof data.currentColor==='string' && /^#[0-9a-fA-F]{6}$/.test(data.currentColor)) setCurrentColor(data.currentColor);
+    if(typeof data.fillMode==='string' && fillModes.some(m=>m.id===data.fillMode)) fillMode=data.fillMode;
+
+    if(Array.isArray(data.swatches)){
+      for(let i=0;i<SWATCH_COUNT;i++){
+        const v=data.swatches[i];
+        swatches[i]=(typeof v==='string' && /^#[0-9a-fA-F]{6}$/.test(v))?v.toLowerCase():null;
+      }
+      swatchPage=0;
+      persistSwatches();
+      renderSwatches();
+    }
+
+    hasCanvas=true;
+    setEraserEnabled(data.eraserEnabled===true);
+    syncActiveContext();
+    renderLayers();
+    renderLayerList();
+    updateHistoryButtonsForLayer(getActiveLayer());
+    drawFalloffCurve();
+    renderFillModes();
+    fitToScreen();
+    closeModal();
+    scheduleProjectSave(150);
+  }
+
+  btnExportProject?.addEventListener('click',exportProject);
+  btnImportProject?.addEventListener('click',()=>projectImportInput?.click());
+  projectImportInput?.addEventListener('change',async e=>{
+    const file=e.target.files?.[0];
+    e.target.value='';
+    if(!file) return;
+    try{
+      await importProjectData(JSON.parse(await file.text()));
+    }catch(err){
+      alert('Не удалось импортировать проект: '+(err?.message||'неизвестная ошибка'));
+    }
+  });
+
+  /* ================= save png ================= */
+  document.getElementById('btnSave').addEventListener('click', ()=>{
+    const link = document.createElement('a');
+    link.download = 'рисулька.png';
+    link.href = mainCanvas.toDataURL('image/png');
+    link.click();
+  });
+
+  /* ================= sector drawing tool ================= */
+  /* Настройки эффекта — меняются прямо в коде, UI для них нет.
+     curveInfluence > 1 усиливает влияние кривой; > 1 у density сильнее
+     концентрирует элементы у центра/левой части. sprayDotRadius фиксирует размер точек. */
+  const EFFECT_CONFIG = {
+    curveInfluence: 2.2,
+    sprayDensity: 2.0,
+    sprayDotRadius: 2.0,
+    sprayMaxDots: 7000,
+    scratchDensity: 2.6,
+    scratchMaxPerBand: 42,
+    scratchLength: 0.018,
+    rayWidth: 2.0
+  };
+
+  let radius = 100;
+  let toolState = 'idle'; // idle | settingStart | settingEnd
+  let center = {x:0,y:0};
+  let startPoint = {x:0,y:0};
+  let startAngle = 0, endAngle = 0;
+  let prevRawAngle = 0;
+  let accumulatedDiff = 0;
+  let lastCanvasPos = {x:0,y:0};
+  let fillMode = 'gradient';
+
+  const fillModes = [
+    {id:'gradient', label:'Градиент'},
+    {id:'spray', label:'Спрей'},
+    {id:'rays', label:'Лучи'},
+    {id:'scratches', label:'Царапины'}
+  ];
+  function drawFillModePreview(canvas, mode){
+    const c = canvas.getContext('2d');
+    const w = canvas.width, h = canvas.height;
+    c.clearRect(0,0,w,h);
+    const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#ff4d1f';
+    const center = {x: 0, y: h/2};
+    const r = Math.max(h*1.25, w*0.72, 40);
+    const a0 = -Math.PI * 0.42, a1 = Math.PI * 0.42, alpha = 0.9;
+
+    if(mode === 'rays'){
+      const rayCount = 14, diff = a1-a0;
+      c.save(); c.lineWidth = EFFECT_CONFIG.rayWidth; c.lineCap = 'round';
+      for(let i=0;i<rayCount;i++){
+        const t=i/(rayCount-1), ang=a0+diff*t;
+        const x2=center.x+r*Math.cos(ang), y2=center.y+r*Math.sin(ang);
+        const g=c.createLinearGradient(center.x,center.y,x2,y2);
+        g.addColorStop(0,hexToRgba(accent,alpha));
+        g.addColorStop(0.45,hexToRgba(accent,alpha*0.7));
+        g.addColorStop(1,hexToRgba(accent,0));
+        c.strokeStyle=g; c.beginPath(); c.moveTo(center.x,center.y); c.lineTo(x2,y2); c.stroke();
+      } c.restore();
+    } else if(mode === 'spray'){
+      c.save();
+      const dots=1050, dotR=2.0;
+      for(let i=0;i<dots;i++){
+        const xNorm=Math.pow(Math.random(),2.6), x=xNorm*(w-2);
+        const y=Math.random()*h;
+        c.fillStyle=hexToRgba(accent,0.9*Math.pow(1-xNorm,2.0));
+        c.beginPath(); c.arc(x,y,dotR,0,Math.PI*2); c.fill();
+      } c.restore();
+    } else if(mode === 'scratches'){
+      c.save(); c.lineWidth=1.8; c.lineCap='round';
+      const bands=28;
+      for(let bi=0;bi<bands;bi++){
+        const xNorm=(bi+1)/(bands+1), count=Math.round(17*Math.pow(1-xNorm,3.0));
+        for(let k=0;k<count;k++){
+          const x=xNorm*(w-2), y=5+Math.random()*(h-10), len=6+Math.random()*5;
+          c.strokeStyle=hexToRgba(accent,0.9*Math.pow(1-xNorm,2.6));
+          c.beginPath(); c.moveTo(x,y-len/2); c.lineTo(x,y+len/2); c.stroke();
+        }
+      } c.restore();
+    }
+  }
+
+  function renderFillModes(){
+    const grid = document.getElementById('fillModeGrid');
+    grid.innerHTML = '';
+    fillModes.forEach(m=>{
+      const btn = document.createElement('div');
+      btn.className = `fill-mode-btn mode-${m.id}` + (fillMode===m.id ? ' selected' : '');
+      if(m.id !== 'gradient') btn.classList.add('preview-canvas-mode');
+      const label = document.createElement('span');
+      label.textContent = m.label;
+      btn.appendChild(label);
+      if(m.id !== 'gradient'){
+        const preview=document.createElement('canvas');
+        preview.className='fill-mode-preview-canvas';
+        preview.width=296; preview.height=50;
+        btn.prepend(preview);
+        requestAnimationFrame(()=>drawFillModePreview(preview,m.id));
+      }
+      btn.addEventListener('click', ()=>{
+        fillMode = m.id;
+        renderFillModes();
+        refreshOverlayForState();
+        scheduleProjectSave();
+      });
+      grid.appendChild(btn);
+    });
+  }
+  renderFillModes();
+
+  function toCanvasCoords(clientX, clientY){
+    const rect = viewport.getBoundingClientRect();
+    return {
+      x: (clientX - rect.left - view.panX) / view.zoom,
+      y: (clientY - rect.top - view.panY) / view.zoom
+    };
+  }
+
+  function clearOverlay(){
+    overlayCtx.clearRect(0,0,overlayCanvas.width, overlayCanvas.height);
+  }
+
+  function sectorSpan(a0, a1){
+    let diff = a1 - a0;
+    diff = clamp(diff, -Math.PI*2, Math.PI*2);
+    return {a0, end: a1, diff};
+  }
+
+  function buildSectorPath(c, r, a0, a1){
+    const span = sectorSpan(a0, a1);
+    const path = new Path2D();
+    path.moveTo(c.x, c.y);
+    path.arc(c.x, c.y, r, span.a0, span.end, span.diff < 0);
+    path.closePath();
+    return path;
+  }
+
+  // Живой Shift-snap: можно нажимать/отпускать Shift сколько угодно раз
+  // между кликами — preview сразу переключается между свободным режимом
+  // и магнитной привязкой.
+  const SNAP_ANGLES_DEG = [0, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165];
+  let shiftSnapDown = false;
+
+  function snapAngleToPreferred(angle){
+    // Сетка каждые 15° по всему холсту: 0..345° (360° = 0°).
+    const preferred = [];
+    for(let deg=0; deg<360; deg+=15){
+      preferred.push(deg * Math.PI/180);
+    }
+
+    let best = angle;
+    let bestDist = Infinity;
+    for(const a of preferred){
+      let d = Math.abs(angle - a) % (Math.PI*2);
+      d = Math.min(d, Math.PI*2 - d);
+      if(d < bestDist){
+        bestDist = d;
+        best = a;
+      }
+    }
+    return best;
+  }
+
+  // Для третьей точки магнитим абсолютное направление относительно холста,
+  // но сохраняем развёрнутый угол, чтобы можно было пройти дальше 180°
+  // и дойти до 360° без перескока через границу -180°/180°.
+  function snapUnwrappedAngle(angle){
+    const step = Math.PI / 12; // 15°
+    return Math.round(angle / step) * step;
+  }
+
+  function pointFromAngle(center, radius, angle){
+    return {
+      x: center.x + radius * Math.cos(angle),
+      y: center.y + radius * Math.sin(angle)
+    };
+  }
+
+  /* ---- кривая спада (аналог кривых в Photoshop, один канал) ---- */
+  // x = расстояние от центра (0..1), y = множитель альфы (0..1)
+  let falloffPoints = [
+    {x:0, y:1},
+    {x:1, y:0}
+  ];
+  let dragPointIndex = -1;
+
+  function sortedFalloffPoints(){
+    return falloffPoints.slice().sort((a,b)=>a.x-b.x);
+  }
+
+  // Кусочно-линейная оценка кривой в точке t (0..1) -> множитель альфы (0..1)
+  function evalFalloff(t){
+    const pts = sortedFalloffPoints();
+    t = clamp(t, 0, 1);
+    if(t <= pts[0].x) return clamp(pts[0].y, 0, 1);
+    if(t >= pts[pts.length-1].x) return clamp(pts[pts.length-1].y, 0, 1);
+    for(let i=0;i<pts.length-1;i++){
+      const p0 = pts[i], p1 = pts[i+1];
+      if(t >= p0.x && t <= p1.x){
+        const span = (p1.x - p0.x) || 0.0001;
+        const k = (t - p0.x) / span;
+        return clamp(p0.y + (p1.y - p0.y) * k, 0, 1);
+      }
+    }
+    return 0;
+  }
+
+  // Усиливает влияние кривой без изменения самой кривой в UI. При 1 — старое поведение.
+  function effectiveFalloff(t, strength = EFFECT_CONFIG.curveInfluence){
+    return Math.pow(clamp(evalFalloff(t), 0, 1), Math.max(0.01, strength));
+  }
+
+  const curveCanvas = document.getElementById('falloffCurve');
+  const curveCtx = curveCanvas ? curveCanvas.getContext('2d') : null;
+  const CURVE_PAD = 10;
+
+  function curveToPixel(p){
+    const w = curveCanvas.width - CURVE_PAD*2;
+    const h = curveCanvas.height - CURVE_PAD*2;
+    return { x: CURVE_PAD + p.x*w, y: CURVE_PAD + (1-p.y)*h };
+  }
+  function pixelToCurve(px, py){
+    const w = curveCanvas.width - CURVE_PAD*2;
+    const h = curveCanvas.height - CURVE_PAD*2;
+    return {
+      x: clamp((px - CURVE_PAD)/w, 0, 1),
+      y: clamp(1 - (py - CURVE_PAD)/h, 0, 1)
+    };
+  }
+
+  function drawFalloffCurve(){
+    if(!curveCtx) return;
+    const w = curveCanvas.width, h = curveCanvas.height;
+    curveCtx.clearRect(0,0,w,h);
+
+    // сетка
+    curveCtx.strokeStyle = '#e3e3de';
+    curveCtx.lineWidth = 1;
+    for(let i=1;i<4;i++){
+      const gx = CURVE_PAD + (w-CURVE_PAD*2)*i/4;
+      const gy = CURVE_PAD + (h-CURVE_PAD*2)*i/4;
+      curveCtx.beginPath(); curveCtx.moveTo(gx, CURVE_PAD); curveCtx.lineTo(gx, h-CURVE_PAD); curveCtx.stroke();
+      curveCtx.beginPath(); curveCtx.moveTo(CURVE_PAD, gy); curveCtx.lineTo(w-CURVE_PAD, gy); curveCtx.stroke();
+    }
+    curveCtx.strokeStyle = '#c9c9c3';
+    curveCtx.strokeRect(CURVE_PAD, CURVE_PAD, w-CURVE_PAD*2, h-CURVE_PAD*2);
+
+    // сама кривая
+    const pts = sortedFalloffPoints();
+    curveCtx.beginPath();
+    for(let i=0;i<=60;i++){
+      const t = i/60;
+      const pt = curveToPixel({x:t, y:evalFalloff(t)});
+      if(i===0) curveCtx.moveTo(pt.x, pt.y); else curveCtx.lineTo(pt.x, pt.y);
+    }
+    curveCtx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#ff4d1f';
+    curveCtx.lineWidth = 2;
+    curveCtx.stroke();
+
+    // точки
+    pts.forEach(p=>{
+      const px = curveToPixel(p);
+      curveCtx.beginPath();
+      curveCtx.arc(px.x, px.y, 4, 0, Math.PI*2);
+      curveCtx.fillStyle = '#ffffff';
+      curveCtx.fill();
+      curveCtx.lineWidth = 1.5;
+      curveCtx.strokeStyle = '#17181c';
+      curveCtx.stroke();
+    });
+  }
+
+  function findNearestPointIndex(px, py, threshold){
+    let best = -1, bestDist = threshold;
+    falloffPoints.forEach((p, idx)=>{
+      const pp = curveToPixel(p);
+      const d = Math.hypot(pp.x-px, pp.y-py);
+      if(d < bestDist){ bestDist = d; best = idx; }
+    });
+    return best;
+  }
+
+  if(curveCanvas){
+    curveCanvas.addEventListener('pointerdown', (e)=>{
+      const rect = curveCanvas.getBoundingClientRect();
+      const px = (e.clientX-rect.left) * (curveCanvas.width/rect.width);
+      const py = (e.clientY-rect.top) * (curveCanvas.height/rect.height);
+      const idx = findNearestPointIndex(px, py, 12);
+      if(idx >= 0){
+        dragPointIndex = idx;
+      } else {
+        const np = pixelToCurve(px, py);
+        falloffPoints.push(np);
+        dragPointIndex = falloffPoints.indexOf(np);
+      }
+      curveCanvas.setPointerCapture(e.pointerId);
+      drawFalloffCurve();
+      refreshOverlayForState();
+      scheduleProjectSave();
+    });
+    curveCanvas.addEventListener('pointermove', (e)=>{
+      if(dragPointIndex < 0) return;
+      const rect = curveCanvas.getBoundingClientRect();
+      const px = (e.clientX-rect.left) * (curveCanvas.width/rect.width);
+      const py = (e.clientY-rect.top) * (curveCanvas.height/rect.height);
+      const np = pixelToCurve(px, py);
+      const p = falloffPoints[dragPointIndex];
+      p.y = np.y;
+      // крайние точки кривой (первая и последняя по X) двигаются только по Y
+      if(!(sortedFalloffPoints()[0]===p) && !(sortedFalloffPoints()[sortedFalloffPoints().length-1]===p)){
+        p.x = np.x;
+      }
+      drawFalloffCurve();
+      refreshOverlayForState();
+      scheduleProjectSave();
+    });
+    window.addEventListener('pointerup', ()=>{ dragPointIndex = -1; });
+    curveCanvas.addEventListener('dblclick', (e)=>{
+      const rect = curveCanvas.getBoundingClientRect();
+      const px = (e.clientX-rect.left) * (curveCanvas.width/rect.width);
+      const py = (e.clientY-rect.top) * (curveCanvas.height/rect.height);
+      const idx = findNearestPointIndex(px, py, 12);
+      if(idx >= 0 && falloffPoints.length > 2){
+        falloffPoints.splice(idx, 1);
+        drawFalloffCurve();
+        refreshOverlayForState();
+        scheduleProjectSave();
+      }
+    });
+    drawFalloffCurve();
+  }
+
+  function fillGradientSector(context, c, r, a0, a1, hex, alpha){
+    const path = buildSectorPath(c, r, a0, a1);
+    const grad = context.createRadialGradient(c.x, c.y, 0, c.x, c.y, r);
+    const steps = 64;
+    for(let i=0;i<=steps;i++){
+      const t = i/steps;
+      const a = alpha * effectiveFalloff(t);
+      grad.addColorStop(t, hexToRgba(hex, a));
+    }
+    context.fillStyle = grad;
+    context.fill(path);
+    return path;
+  }
+
+  function fillSpraySector(context, c, r, a0, a1, hex, alpha){
+    if(r <= 0) return;
+    const span = sectorSpan(a0, a1);
+    const diff = span.diff === 0 ? 0.0001 : span.diff;
+    const absDiff = Math.abs(diff);
+    const sign = Math.sign(diff) || 1;
+
+    // Размер точек постоянный. Плотность задаётся на единицу площади и зависит
+    // только от нормализованного расстояния t от центра. Поэтому изменение
+    // радиуса или длины дуги изменяет число точек пропорционально площади,
+    // но не меняет локальную плотность рисунка.
+    const dotR = EFFECT_CONFIG.sprayDotRadius;
+    const maxDist = Math.max(0, r - dotR);
+    const area = 0.5 * maxDist * maxDist * absDiff;
+    const baseDensity = 0.34;
+    const count = clamp(Math.round(area * baseDensity), 1, EFFECT_CONFIG.sprayMaxDots);
+    const dotsPath = new Path2D();
+
+    for(let i=0;i<count;i++){
+      // Равномерно по площади: t = sqrt(u). Отбор меняет только радиальную
+      // вероятность, поэтому итоговая плотность в точке = baseDensity * falloff(t).
+      let t;
+      let accepted = false;
+      for(let tries=0; tries<32; tries++){
+        t = Math.sqrt(Math.random());
+        if(Math.random() <= effectiveFalloff(t, EFFECT_CONFIG.sprayDensity)){
+          accepted = true;
+          break;
+        }
+      }
+      if(!accepted) continue;
+
+      const dist = t * maxDist;
+      const ang = span.a0 + sign * Math.random() * absDiff;
+      const x = c.x + dist * Math.cos(ang);
+      const y = c.y + dist * Math.sin(ang);
+      dotsPath.moveTo(x + dotR, y);
+      dotsPath.arc(x, y, dotR, 0, Math.PI*2);
+    }
+    context.save();
+    context.fillStyle = hexToRgba(hex, alpha);
+    context.fill(dotsPath);
+    context.restore();
+  }
+
+  function fillRaysSector(context, c, r, a0, a1, hex, alpha){
+    if(r <= 0) return;
+    const span = sectorSpan(a0, a1);
+    const diff = span.diff;
+    const rayCount = clamp(Math.round(Math.abs(diff) / (Math.PI/18)) + 3, 4, 64);
+    context.save();
+    // Фиксированная толщина: больше никакого визуального утолщения к правому краю.
+    context.lineWidth = EFFECT_CONFIG.rayWidth;
+    context.lineCap = 'round';
+    const steps = 12;
+    for(let i=0;i<rayCount;i++){
+      const t = rayCount <= 1 ? 0 : i/(rayCount-1);
+      const ang = span.a0 + diff * t;
+      const rayR = r * 1.08;
+      const x2 = c.x + rayR*Math.cos(ang), y2 = c.y + rayR*Math.sin(ang);
+      const grad = context.createLinearGradient(c.x, c.y, x2, y2);
+      for(let s=0;s<=steps;s++){
+        const st = s/steps;
+        grad.addColorStop(st, hexToRgba(hex, alpha * effectiveFalloff(st)));
+      }
+      context.strokeStyle = grad;
+      context.beginPath();
+      context.moveTo(c.x, c.y);
+      context.lineTo(x2, y2);
+      context.stroke();
+    }
+    context.restore();
+  }
+
+  function fillScratchesSector(context, c, r, a0, a1, hex, alpha){
+    if(r <= 0) return;
+    const span = sectorSpan(a0, a1);
+    const diff = span.diff === 0 ? 0.0001 : span.diff;
+    const bands = 40;
+    const maxPerBand = EFFECT_CONFIG.scratchMaxPerBand;
+    context.save();
+    context.strokeStyle = hexToRgba(hex, alpha);
+    context.lineCap = 'round';
+    context.lineWidth = Math.max(1, r * 0.0035);
+    for(let bi=1; bi<bands; bi++){
+      const t = bi/(bands-1);
+      const density = effectiveFalloff(t, EFFECT_CONFIG.scratchDensity);
+      const countAtBand = Math.round(density * maxPerBand);
+      const dist = t * r;
+      for(let k=0; k<countAtBand; k++){
+        const ang = span.a0 + Math.random() * diff;
+        const px = c.x + dist*Math.cos(ang);
+        const py = c.y + dist*Math.sin(ang);
+        const segLen = clamp(r * EFFECT_CONFIG.scratchLength, 3, 18);
+        const dx = -Math.sin(ang) * segLen/2;
+        const dy = Math.cos(ang) * segLen/2;
+        context.beginPath();
+        context.moveTo(px-dx, py-dy);
+        context.lineTo(px+dx, py+dy);
+        context.stroke();
+      }
+    }
+    context.restore();
+  }
+
+  function applyFill(context, c, r, a0, a1, hex, alpha, mode){
+    switch(mode){
+      case 'spray': fillSpraySector(context, c, r, a0, a1, hex, alpha); break;
+      case 'rays': fillRaysSector(context, c, r, a0, a1, hex, alpha); break;
+      case 'scratches': fillScratchesSector(context, c, r, a0, a1, hex, alpha); break;
+      default: fillGradientSector(context, c, r, a0, a1, hex, alpha);
+    }
+  }
+
+  function drawAimingGuide(c, pos){
+    clearOverlay();
+    overlayCtx.save();
+
+    const a = Math.atan2(pos.y-c.y, pos.x-c.x);
+    overlayCtx.setLineDash([6,5]);
+    overlayCtx.lineWidth = Math.max(1, 1.5/view.zoom);
+    overlayCtx.beginPath();
+    overlayCtx.moveTo(c.x, c.y);
+    overlayCtx.lineTo(c.x + radius*Math.cos(a), c.y + radius*Math.sin(a));
+    overlayCtx.strokeStyle = 'rgba(20,21,26,0.9)';
+    overlayCtx.setLineDash([]);
+    overlayCtx.stroke();
+
+    overlayCtx.beginPath();
+    overlayCtx.arc(c.x, c.y, Math.max(2.5, 4/view.zoom), 0, Math.PI*2);
+    overlayCtx.fillStyle = 'rgba(20,21,26,0.9)';
+    overlayCtx.fill();
+    overlayCtx.restore();
+  }
+
+  function drawSectorPreview(c, r, a0, a1){
+    clearOverlay();
+    overlayCtx.save();
+    if(eraserEnabled){
+      applyFill(overlayCtx,c,r,a0,a1,'#ff4d1f',0.18,fillMode);
+    }else{
+      applyFill(overlayCtx,c,r,a0,a1,currentColor,0.85,fillMode);
+    }
+    overlayCtx.setLineDash([5,4]);
+    overlayCtx.lineWidth = Math.max(1, 1.5/view.zoom);
+    overlayCtx.strokeStyle = 'rgba(20,21,26,0.85)';
+    const path = buildSectorPath(c, r, a0, a1);
+    overlayCtx.stroke(path);
+    overlayCtx.setLineDash([]);
+    overlayCtx.beginPath();
+    overlayCtx.arc(c.x, c.y, Math.max(2.5, 4/view.zoom), 0, Math.PI*2);
+    overlayCtx.fillStyle = 'rgba(20,21,26,0.9)';
+    overlayCtx.fill();
+    overlayCtx.restore();
+  }
+
+  function applyErase(context,c,r,a0,a1,alpha,mode){
+    context.save();
+    context.globalCompositeOperation='destination-out';
+    applyFill(context,c,r,a0,a1,'#ffffff',alpha,mode);
+    context.restore();
+  }
+
+  function commitSector(){
+    const layer=getActiveLayer();
+    if(!layer) return;
+    syncActiveContext();
+    if(eraserEnabled){
+      applyErase(layer.ctx,center,radius,startAngle,endAngle,1,fillMode);
+    }else{
+      applyFill(layer.ctx,center,radius,startAngle,endAngle,currentColor,1,fillMode);
+    }
+    renderLayers();
+    pushHistory();
+    scheduleProjectSave();
+  }
+
+  function resetToolState(){
+    toolState = 'idle';
+    clearOverlay();
+    toolStatus.textContent = 'Кликните, чтобы задать центр сектора';
+  }
+
+  function refreshOverlayForState(){
+    if(toolState === 'settingStart'){
+      drawAimingGuide(center, lastCanvasPos);
+    } else if(toolState === 'settingEnd'){
+      drawSectorPreview(center, radius, startAngle, endAngle);
+    } else {
+      clearOverlay();
+    }
+  }
+
+  /* ================= pan state ================= */
+  let spaceDown = false;
+  let isPanning = false;
+  let panStart = null;
+
+  function isTypingTarget(el){
+    return el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA');
+  }
+
+  window.addEventListener('keydown', (e)=>{
+    if(e.code==='KeyE' && !e.ctrlKey && !e.metaKey && !e.altKey && !isTypingTarget(document.activeElement)){
+      e.preventDefault();
+      setEraserEnabled(!eraserEnabled);
+      return;
+    }
+    if(e.code === 'Space' && !isTypingTarget(document.activeElement)){
+      if(!spaceDown){
+        spaceDown = true;
+        viewport.classList.add('pan-ready');
+      }
+      e.preventDefault();
+    }
+    if(e.code === 'Escape'){
+      toggleHelp(false);
+      if(toolState !== 'idle'){
+        resetToolState();
+      }
+    }
+    const ctrlOrCmd = e.ctrlKey || e.metaKey;
+    if(ctrlOrCmd && !isTypingTarget(document.activeElement)){
+      if(e.code === 'KeyZ' && !e.shiftKey){ e.preventDefault(); undo(); }
+      else if((e.code === 'KeyZ' && e.shiftKey) || e.code === 'KeyY'){ e.preventDefault(); redo(); }
+    }
+  });
+  window.addEventListener('keyup', (e)=>{
+    if(e.code === 'Space'){
+      spaceDown = false;
+      isPanning = false;
+      viewport.classList.remove('pan-ready');
+      viewport.classList.remove('panning');
+    }
+  });
+  window.addEventListener('blur', ()=>{
+    spaceDown = false; isPanning = false;
+    viewport.classList.remove('pan-ready','panning');
+  });
+
+  /* ================= pointer events on viewport ================= */
+  viewport.addEventListener('contextmenu', (e)=> e.preventDefault());
+
+  window.addEventListener('keydown', (e)=>{
+    if(e.key === 'Shift' || e.code === 'ShiftLeft' || e.code === 'ShiftRight'){
+      // Не реагируем на auto-repeat Shift: один переход состояния = один redraw.
+      if(e.repeat || shiftSnapDown) return;
+      shiftSnapDown = true;
+      if(toolState === 'settingStart' || toolState === 'settingEnd') refreshOverlayForState();
+    }
+  });
+  window.addEventListener('keyup', (e)=>{
+    if(e.key === 'Shift' || e.code === 'ShiftLeft' || e.code === 'ShiftRight'){
+      if(!shiftSnapDown) return;
+      shiftSnapDown = false;
+      if(toolState === 'settingStart' || toolState === 'settingEnd') refreshOverlayForState();
+    }
+  });
+
+  window.addEventListener('blur', ()=>{
+    shiftSnapDown = false;
+  });
+
+  viewport.addEventListener('pointerdown', (e)=>{
+    if(!hasCanvas) return;
+    if(e.button !== 0) return;
+
+    if(spaceDown){
+      isPanning = true;
+      panStart = {x:e.clientX, y:e.clientY, panX:view.panX, panY:view.panY};
+      viewport.classList.add('panning');
+      viewport.setPointerCapture(e.pointerId);
+      return;
+    }
+
+    const p = toCanvasCoords(e.clientX, e.clientY);
+
+    if(toolState === 'idle'){
+      center = p;
+      lastCanvasPos = p;
+      radius = 4;
+      radiusReadout.textContent = '4';
+      startAngle = null;
+      toolState = 'settingStart';
+      toolStatus.textContent = 'Двигайте курсор и кликните, чтобы задать первую точку дуги';
+      // Не рисуем старый направляющий радиус в момент клика: следующий pointermove
+      // сразу рассчитает актуальный радиус/направление.
+      clearOverlay();
+    } else if(toolState === 'settingStart'){
+      const rawAngle = Math.atan2(p.y-center.y, p.x-center.x);
+      const startRadius = Math.max(4, Math.hypot(p.x-center.x, p.y-center.y));
+      const finalAngle = shiftSnapDown ? snapAngleToPreferred(rawAngle) : rawAngle;
+      startAngle = finalAngle;
+      startPoint = pointFromAngle(center, startRadius, finalAngle);
+      lastCanvasPos = shiftSnapDown ? startPoint : p;
+      prevRawAngle = startAngle;
+      accumulatedDiff = 0;
+      endAngle = startAngle;
+      toolState = 'settingEnd';
+      toolStatus.textContent = 'Двигайте курсор, кликните, чтобы завершить сектор';
+    } else if(toolState === 'settingEnd'){
+      commitSector();
+      resetToolState();
+    }
+  });
+
+  viewport.addEventListener('pointermove', (e)=>{
+    if(!hasCanvas) return;
+
+    if(isPanning){
+      view.panX = panStart.panX + (e.clientX - panStart.x);
+      view.panY = panStart.panY + (e.clientY - panStart.y);
+      applyTransform();
+      return;
+    }
+
+    const p = toCanvasCoords(e.clientX, e.clientY);
+    lastCanvasPos = p;
+
+    if(toolState === 'settingStart'){
+      radius = Math.max(4, Math.hypot(p.x-center.x, p.y-center.y));
+      radiusReadout.textContent = Math.round(radius);
+
+      const rawAngle = Math.atan2(p.y-center.y, p.x-center.x);
+      const guideAngle = shiftSnapDown ? snapAngleToPreferred(rawAngle) : rawAngle;
+      lastCanvasPos = shiftSnapDown ? pointFromAngle(center, radius, guideAngle) : p;
+      drawAimingGuide(center, lastCanvasPos);
+    } else if(toolState === 'settingEnd'){
+      const currentRawAngle = Math.atan2(p.y-center.y, p.x-center.x);
+
+      // Наращиваем угол непрерывно, а не держим его в диапазоне ±180°.
+      // Поэтому движение через 180° не вызывает скачка на -180°.
+      let delta = currentRawAngle - prevRawAngle;
+      while(delta > Math.PI) delta -= Math.PI * 2;
+      while(delta < -Math.PI) delta += Math.PI * 2;
+      accumulatedDiff += delta;
+      accumulatedDiff = clamp(accumulatedDiff, -Math.PI * 2, Math.PI * 2);
+      prevRawAngle = currentRawAngle;
+
+      const rawEndAngle = startAngle + accumulatedDiff;
+      const effectiveEndAngle = shiftSnapDown
+        ? snapUnwrappedAngle(rawEndAngle)
+        : rawEndAngle;
+
+      endAngle = startAngle + clamp(effectiveEndAngle - startAngle, -Math.PI * 2, Math.PI * 2);
+      drawSectorPreview(center, radius, startAngle, endAngle);
+    }
+  });
+
+  viewport.addEventListener('pointerup', (e)=>{
+    if(isPanning){
+      isPanning = false;
+      viewport.classList.remove('panning');
+    }
+  });
+
+  viewport.addEventListener('pointerleave', ()=>{
+    if(toolState === 'idle') clearOverlay();
+  });
+
+  viewport.addEventListener('wheel', (e)=>{
+    if(!hasCanvas) return;
+    e.preventDefault();
+
+    if(toolState === 'settingEnd'){
+      const step = Math.max(2, radius * 0.08);
+      radius = clamp(e.deltaY < 0 ? radius + step : radius - step, 4, Math.max(mainCanvas.width, mainCanvas.height)*1.5);
+      radiusReadout.textContent = Math.round(radius);
+      refreshOverlayForState();
+    } else {
+      const factor = e.deltaY < 0 ? 1.1 : 1/1.1;
+      zoomAt(e.clientX, e.clientY, factor);
+    }
+  }, {passive:false});
+
+  viewport.style.touchAction = 'none';
+
+  window.addEventListener('resize', ()=>{});
+
+  document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='hidden') saveProjectNow(); });
+  window.addEventListener('beforeunload',()=>{ saveProjectNow(); });
+
+  // На телефонах редактор намеренно не запускается как рабочий интерфейс.
+  const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (window.matchMedia && window.matchMedia('(max-width:700px)').matches);
+  if(isMobileDevice){
+    document.body.classList.add('mobile-device');
+    const emojis=['😵','💀','🤡','😭','🗿','🐸','😈','🙃','🚨','👻', '👽', '👺', '💩', '🔥', '💥', '🤯', '🤠', '💅', '😱', '🥵', '🥶', '🤬', '👿', '🖤', '⛓️', '💔', '⚰️', '🤓', '🤫', '🤔', '🤨', '🙄', '🥱', '🤢', '🐒', '📢', '⚠️', '🛑', '🧊', '🃏', '🧻', '🗑️', '💊', '🔮', '🎭', '🧙', '🧟', '🧛', '🖤', '👁️', '🦴', '🕷️', '🐀', '🦖', '🦍', '🦧', '🐖', '🍍', '🚬', '🗡️', '🔫', '⛓', '💣', '🎰', '🧿', '🧬', '🗑', '🚽', '🧱', '🎪', '🍿', '👺', '👾', '🤥', '🤤', '🥴', '🧐', '🥳', '😎', '🖕', '🧠', '🧟‍♂️', '🐗','🦕', '🐊', '🦎', '🐍', '🐢', '🐉', '🐲', '🌋', '☄️', '🌴', '🌿', '🥚', '🐾'];
+    document.getElementById('mobileEmoji').textContent=emojis[Math.floor(Math.random()*emojis.length)];
+  }
+
+  (async()=>{
+    if(isMobileDevice) return;
+    const restored = await restoreProject();
+    if(!restored){
+      createCanvas(1600, 1000, '#ffffff');
+      openModal();
+    }
+  })();
+
+})();
+</script>
+</body>
+</html>

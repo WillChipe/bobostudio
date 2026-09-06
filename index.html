@@ -815,6 +815,94 @@ function mixColor(hex,f){
 
       ctx.restore(); // end rounded-rect clip
     }
+    
+
+// ── Icon: Radiart ──────────────────────────────────────────────────────
+function drawRadiartIcon(ctx, S) {
+
+  const R = S * .1;
+  const O = '#ff4d1f';
+  const B = '#17181c';
+
+  ctx.save();
+
+  // Clip
+  ctx.beginPath();
+  ctx.roundRect(0, 0, S, S, R);
+  ctx.clip();
+
+  // White background
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, S, S);
+
+  // ── Soft orange gradient ────────────────────────────────────────────
+  const g = ctx.createRadialGradient(
+    S * .82, S * .12, 0,
+    S * .82, S * .12, S * .75
+  );
+  g.addColorStop(0, 'rgba(255,77,31,.55)');
+  g.addColorStop(1, 'rgba(255,77,31,0)');
+
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, S, S);
+
+  // ── Ring helper ─────────────────────────────────────────────────────
+  function ring(x, y, r, width, color = O) {
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width;
+    ctx.stroke();
+  }
+
+  // ── Rings ────────────────────────────────────────────────────────────
+  ring(S * .22, S * .22, S * .13, S * .045);
+  ring(S * .62, S * .39, S * .075, S * .035);
+  ring(S * .77, S * .16, S * .065, S * .022, B);
+
+  // ── Rays ────────────────────────────────────────────────────────────
+  const cx = S * .33;
+  const cy = S * .70;
+  const radius = S * .21;
+
+  for (let i = 0; i < 28; i++) {
+    const t = i / 27;
+    const a = Math.PI * (0 + t * 1.45);
+
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(
+      cx + radius * Math.cos(a),
+      cy + radius * Math.sin(a)
+    );
+
+    ctx.strokeStyle = `rgba(255,77,31,${.95 - t * .7})`;
+    ctx.lineWidth = S * .006;
+    ctx.stroke();
+  }
+
+  // ── Bottom-right cropped circle ─────────────────────────────────────
+  ctx.beginPath();
+  ctx.arc(
+    S * 1.02,
+    S * 1.02,
+    S * .32,
+    0,
+    Math.PI * 2
+  );
+
+  ctx.fillStyle = O;
+  ctx.fill();
+
+  // ── Outer border ────────────────────────────────────────────────────
+  ctx.beginPath();
+  ctx.roundRect(0, 0, S, S, R);
+  ctx.strokeStyle = '#FFFFFF';
+  ctx.lineWidth = S * 0.12;
+  ctx.stroke();
+
+  ctx.restore();
+}
     // ── Icon: Jawbreaker ──────────────────────────────────────────────────────────
     function drawJawbreakerIcon(ctx, S) {
       // Фон
@@ -1042,7 +1130,8 @@ function mixColor(hex,f){
       { id: 'bukovki', draw: drawBukovkiIcon },
       { id: 'synth', draw: drawSynthIcon },
       { id: 'balls', draw: drawBallsIcon },
-      { id: 'rubic', draw: drawRubikIcon}
+      { id: 'rubic', draw: drawRubikIcon},
+      { id: 'radiart', draw: drawRadiartIcon},
 
     ];
 
@@ -1121,6 +1210,12 @@ function mixColor(hex,f){
         icon: 'rubic',
         url: 'rubic.html',
       },
+      {
+        hi: '#ffffff', lo: '#FF4D1F',
+        label: 'radiart',
+        icon: 'radiart',
+        url: 'radiart.html',
+      },
     ];
 
     let cards = [];
@@ -1129,10 +1224,10 @@ function mixColor(hex,f){
       cards.forEach(c => World.remove(world, c.body));
       cards = [];
       const cw = CARD_W(), ch = CARD_H(), cr = CARD_R();
-      const spacing = cw * 1.6;
+      const spacing = cw * 0.6;
       CARDS_DEF.forEach((def, i) => {
         const body = Bodies.rectangle(
-          W / 2 + (i - 1) * spacing, -120 - i * 95,
+          W / 2.5 + (i - 1) * spacing, -60 - i * 595,
           cw, ch,
           { chamfer: { radius: cr }, restitution: 0.28, friction: 0.42, frictionAir: 0.014, density: 0.0026, label: 'card' }
         );
