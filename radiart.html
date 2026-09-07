@@ -168,6 +168,10 @@
   }
   .viewport.panning{cursor:grabbing;}
   .viewport.pan-ready{cursor:grab;}
+  .viewport.file-drag-over{
+    outline:3px dashed var(--accent);
+    outline-offset:-6px;
+  }
 
   .canvas-stage{
     position:absolute;
@@ -554,6 +558,25 @@
   @media (max-width:700px){body.mobile-device #app{display:none;} body.mobile-device .mobile-blocker{display:flex;}}
 
   /* ---------- MODAL ---------- */
+  .drop-confirm{
+    position:absolute;
+    left:50%;top:50%;
+    transform:translate(-50%,-50%);
+    width:270px;
+    background:var(--panel);
+    color:var(--text);
+    border:2px solid var(--border);
+    box-shadow:var(--hard-shadow);
+    padding:14px;
+    z-index:40;
+    text-align:left;
+  }
+  .drop-confirm.hidden{display:none;}
+  .drop-confirm-title{font-size:14px;font-weight:800;margin-bottom:5px;}
+  .drop-confirm-file{font-size:10.5px;line-height:1.3;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:12px;}
+  .drop-confirm-actions{display:flex;justify-content:flex-end;gap:7px;}
+  .drop-confirm-actions .btn{padding:6px 9px;font-size:11px;}
+
   .modal-backdrop{
     position:fixed;inset:0;
     background:rgba(23,24,28,.55);
@@ -733,12 +756,13 @@
         <div class="help-section">
           <div class="help-title">Рисование сектора</div>
           <div class="help-row"><kbd>Shift</kbd><span>Во время выбора точки включает/выключает магнит к углам с шагом 15°.</span></div>
-          <div class="help-row"><kbd>Колесо</kbd><span>На 3-м этапе меняет радиус сектора; в остальное время меняет масштаб холста.</span></div>
+          <div class="help-row"><kbd>Колесо</kbd><span>Меняет радиус сектора (после установки первой точки дуги)</span></div>
           <div class="help-row"><kbd>Esc</kbd><span>Отменить текущее построение.</span></div>
         </div>
         <div class="help-section">
           <div class="help-title">Навигация</div>
           <div class="help-row"><kbd>Пробел</kbd> + <kbd>ЛКМ</kbd><span>Перемещение холста.</span></div>
+          <div class="help-row"><kbd>СКМ</kbd></div>
         </div>
         <div class="help-section">
           <div class="help-title">История и слои</div>
@@ -825,6 +849,15 @@
 
 <div id="mobileBlocker" class="mobile-blocker"><div class="mobile-blocker-box"><div class="mobile-blocker-title">ой ой беда</div><div>с таким маленьким экраном работать не будет <span id="mobileEmoji"></span></div></div></div>
 
+<div class="drop-confirm hidden" id="dropConfirm" role="dialog" aria-label="Подтверждение загрузки файла">
+  <div class="drop-confirm-title" id="dropConfirmTitle">Загрузить файл?</div>
+  <div class="drop-confirm-file" id="dropConfirmFile"></div>
+  <div class="drop-confirm-actions">
+    <button class="btn primary" id="btnConfirmDrop" type="button">Загрузить</button>
+    <button class="btn" id="btnCancelDrop" type="button">Отмена</button>
+  </div>
+</div>
+
 <div class="modal-backdrop" id="modalBackdrop">
   <div class="modal">
     <h2>Новый холст</h2>
@@ -888,6 +921,12 @@
   const bgColorPicker = document.getElementById('bgColorPicker');
   const bgColorFill = document.getElementById('bgColorFill');
   const bgTransparent = document.getElementById('bgTransparent');
+
+  const dropConfirm = document.getElementById('dropConfirm');
+  const dropConfirmFile = document.getElementById('dropConfirmFile');
+  const btnConfirmDrop = document.getElementById('btnConfirmDrop');
+  const btnCancelDrop = document.getElementById('btnCancelDrop');
+  let pendingFileDrop = null;
 
   const colorPicker = document.getElementById('colorPicker');
   const hexInput = document.getElementById('hexInput');
@@ -1050,6 +1089,38 @@
   /* ================= modal open/close ================= */
   function openModal(){ modalBackdrop.classList.remove('hidden'); }
   function closeModal(){ modalBackdrop.classList.add('hidden'); }
+
+  const dropConfirmTitle = document.getElementById('dropConfirmTitle');
+  function openDropConfirm(file, type){
+    pendingFileDrop={file,type};
+    if(dropConfirmTitle) dropConfirmTitle.textContent = type==='radiart' ? 'Загрузить проект?' : 'Заменить фон?';
+    if(dropConfirmFile) dropConfirmFile.textContent=file?.name || (type==='radiart' ? 'Radiart' : 'PNG');
+    if(btnConfirmDrop) btnConfirmDrop.textContent = type==='radiart' ? 'Загрузить' : 'Заменить';
+    dropConfirm?.classList.remove('hidden');
+  }
+  function closeDropConfirm(){
+    pendingFileDrop=null;
+    dropConfirm?.classList.add('hidden');
+  }
+
+  btnCancelDrop?.addEventListener('click',e=>{ e.preventDefault(); e.stopPropagation(); closeDropConfirm(); });
+  btnConfirmDrop?.addEventListener('click',async e=>{
+    e.preventDefault();
+    e.stopPropagation();
+    const pending=pendingFileDrop;
+    closeDropConfirm();
+    if(!pending?.file) return;
+    try{
+      if(pending.type==='radiart'){
+        await importProjectData(JSON.parse(await pending.file.text()));
+      }else{
+        await replaceBackgroundWithPNG(pending.file);
+      }
+    }catch(err){
+      alert('Не удалось загрузить файл: '+(err?.message||'неизвестная ошибка'));
+    }
+  });
+
   const deleteConfirmPopover=document.getElementById('deleteConfirmPopover');
   const btnLayerDelete=document.getElementById('btnLayerDelete');
   const btnCancelDelete=document.getElementById('btnCancelDelete');
@@ -1083,6 +1154,10 @@
   }
   btnHelp?.addEventListener('pointerdown',e=>{ e.stopPropagation(); });
   btnHelp?.addEventListener('click',e=>{ e.stopPropagation(); toggleHelp(); });
+
+  // Колесо над панелью подсказки должно прокручивать саму подсказку,
+  // а не передаваться обработчику масштаба холста.
+  helpPanel?.addEventListener('wheel',e=>{ e.stopPropagation(); }, {passive:false});
 
   document.getElementById('btnNewCanvas').addEventListener('click', openModal);
   document.getElementById('btnCancelModal').addEventListener('click', ()=>{
@@ -1736,6 +1811,112 @@
     }
   });
 
+  function isPngFile(file){
+    return !!file && (file.type === 'image/png' || /\.png$/i.test(file.name || ''));
+  }
+  function isRadiartFile(file){
+    return !!file && /\.radiart$/i.test(file.name || '');
+  }
+
+  async function replaceBackgroundWithPNG(file){
+    if(!hasCanvas){
+      alert('Сначала создайте холст.');
+      return;
+    }
+    const background=layers.find(layer=>layer.isBackground);
+    if(!background){
+      alert('Слой «Фон» не найден.');
+      return;
+    }
+    const w=background.canvas.width, h=background.canvas.height;
+    try{
+      let source=null;
+      let revokeUrl=null;
+      try{
+        if(typeof createImageBitmap==='function'){
+          source=await createImageBitmap(file);
+        }
+      }catch(_e){}
+      if(!source){
+        revokeUrl=URL.createObjectURL(file);
+        source=await new Promise((resolve,reject)=>{
+          const img=new Image();
+          img.onload=()=>resolve(img);
+          img.onerror=()=>reject(new Error('Не удалось загрузить PNG'));
+          img.src=revokeUrl;
+        });
+      }
+      background.ctx.clearRect(0,0,w,h);
+      background.ctx.drawImage(source,0,0,w,h);
+      if(typeof source.close==='function') source.close();
+      if(revokeUrl) URL.revokeObjectURL(revokeUrl);
+      pushHistoryForLayer(background);
+      renderLayers();
+      renderLayerList();
+      updateHistoryButtonsForLayer(getActiveLayer());
+      scheduleProjectSave();
+    }catch(err){
+      alert(err?.message || 'Не удалось загрузить PNG');
+    }
+  }
+
+  function pushHistoryForLayer(layer){
+    if(!layer) return;
+    layer.history=layer.history.slice(0,layer.historyIndex+1);
+    layer.history.push(layer.ctx.getImageData(0,0,layer.canvas.width,layer.canvas.height));
+    if(layer.history.length>MAX_HISTORY) layer.history.shift();
+    layer.historyIndex=layer.history.length-1;
+  }
+
+  function clearFileDragState(){
+    viewport.classList.remove('file-drag-over');
+    fileDragDepth=0;
+  }
+
+  let fileDragDepth=0;
+  viewport.addEventListener('dragenter',e=>{
+    e.preventDefault();
+    if(e.dataTransfer?.types?.includes('Files')){
+      fileDragDepth++;
+      viewport.classList.add('file-drag-over');
+    }
+  });
+  viewport.addEventListener('dragover',e=>{
+    e.preventDefault();
+    if(e.dataTransfer) e.dataTransfer.dropEffect='copy';
+    viewport.classList.add('file-drag-over');
+  });
+  viewport.addEventListener('dragleave',e=>{
+    e.preventDefault();
+    fileDragDepth=Math.max(0,fileDragDepth-1);
+    if(fileDragDepth===0) viewport.classList.remove('file-drag-over');
+  });
+  viewport.addEventListener('drop',async e=>{
+    e.preventDefault();
+    const file=e.dataTransfer?.files?.[0] || null;
+    clearFileDragState();
+    if(!file) return;
+    try{
+      if(isPngFile(file)){
+        if(!hasCanvas){ alert('Сначала создайте холст.'); return; }
+        openDropConfirm(file,'png');
+      }else if(isRadiartFile(file)){
+        openDropConfirm(file,'radiart');
+      }else{
+        alert('Поддерживаются только файлы .png и .radiart.');
+      }
+    }catch(err){
+      alert('Не удалось загрузить файл: '+(err?.message||'неизвестная ошибка'));
+    }
+  });
+  window.addEventListener('dragover',e=>e.preventDefault());
+  window.addEventListener('drop',e=>{
+    if(!viewport.contains(e.target)){
+      e.preventDefault();
+      clearFileDragState();
+    }
+  });
+
   /* ================= save png ================= */
   document.getElementById('btnSave').addEventListener('click', ()=>{
     const link = document.createElement('a');
@@ -2348,6 +2529,18 @@
 
   viewport.addEventListener('pointerdown', (e)=>{
     if(!hasCanvas) return;
+
+    // Средняя кнопка мыши всегда работает как пробел + ЛКМ:
+    // начинаем панорамирование до обработки инструмента рисования.
+    if(e.button === 1){
+      e.preventDefault();
+      isPanning = true;
+      panStart = {x:e.clientX, y:e.clientY, panX:view.panX, panY:view.panY};
+      viewport.classList.add('panning');
+      viewport.setPointerCapture(e.pointerId);
+      return;
+    }
+
     if(e.button !== 0) return;
 
     if(spaceDown){
@@ -2437,6 +2630,13 @@
       isPanning = false;
       viewport.classList.remove('panning');
     }
+  });
+  viewport.addEventListener('pointercancel', ()=>{
+    isPanning = false;
+    viewport.classList.remove('panning');
+  });
+  viewport.addEventListener('auxclick',e=>{
+    if(e.button===1) e.preventDefault();
   });
 
   viewport.addEventListener('pointerleave', ()=>{
