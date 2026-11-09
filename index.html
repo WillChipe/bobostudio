@@ -1815,7 +1815,93 @@ function drawRadiartIcon(ctx, S) {
         ctx.restore();
       });
     }
+// ── Картинка на фоне (рисуется в canvas, поэтому карточки всегда поверх) ──────
 
+const ART = {
+  src: 'jungle.png',
+  url: 'jungle.html',
+  img: new Image(),
+  ready: false,
+  hover: 0,
+  alpha: null,
+};
+ART.img.onload = () => {
+  ART.ready = true;
+  const c = document.createElement('canvas');
+  c.width = ART.img.naturalWidth;
+  c.height = ART.img.naturalHeight;
+  ART.alpha = c.getContext('2d', { willReadFrequently: true });
+  ART.alpha.drawImage(ART.img, 0, 0);
+};
+ART.img.src = ART.src;
+
+const ptr = { x: -1, y: -1 };
+
+// Позиция и размер — те же, что были в CSS
+function artRect() {
+  const mobile = W <= 700;
+  const h = mobile ? H * 0.28 : Math.min(H * 0.55, 380);
+  const w = h * ART.img.naturalWidth / ART.img.naturalHeight;
+  const x = W - w + (mobile ? -W * 0.02 : W * 0.01);
+  return { x, y: H * 0.6 - h / 2, w, h };
+}
+
+// Попадание курсора именно в непрозрачные пиксели PNG
+function artHit(px, py) {
+  if (!ART.ready) return false;
+  const r = artRect();
+  if (px < r.x || px > r.x + r.w || py < r.y || py > r.y + r.h) return false;
+  const ix = Math.floor((px - r.x) / r.w * ART.img.naturalWidth);
+  const iy = Math.floor((py - r.y) / r.h * ART.img.naturalHeight);
+  try { return ART.alpha.getImageData(ix, iy, 1, 1).data[3] > 20; }
+  catch (_) { return true; }   // если браузер запретил читать пиксели — считаем по прямоугольнику
+}
+
+function cardAt(px, py) {
+  const cw = CARD_W(), ch = CARD_H();
+  return cards.some(c => !c.snapped &&
+    Math.hypot(px - c.body.position.x, py - c.body.position.y) < Math.max(cw, ch) * 0.68);
+}
+
+function drawArt() {
+  if (!ART.ready) return;
+  const canHover = !dragging && !cardAt(ptr.x, ptr.y) && artHit(ptr.x, ptr.y);
+  ART.hover += ((canHover ? 1 : 0) - ART.hover) * 0.12;
+  const h = ART.hover, r = artRect(), s = 1 + 0.03 * h;
+
+   ctx.save();
+  ctx.translate(r.x + r.w / 2, r.y + r.h / 2);
+  ctx.scale(s, s);
+
+  // 1. Сначала рисуем только светящуюся обводку (ее прозрачность плавно зависит от h)
+  if (h > 0) {
+    ctx.save();
+    ctx.shadowColor = `rgba(185, 103, 255, ${0.6 * h})`;
+    ctx.shadowBlur = 16;
+    ctx.drawImage(ART.img, -r.w / 2, -r.h / 2, r.w, r.h);
+    
+    ctx.shadowColor = `rgba(255, 113, 206, ${0.9 * h})`;
+    ctx.shadowBlur = 4;
+    ctx.drawImage(ART.img, -r.w / 2, -r.h / 2, r.w, r.h);
+    ctx.restore();
+  }
+
+  // 2. Затем поверх рисуем саму картинку без теней и всегда со 100% непрозрачностью
+  ctx.globalAlpha = 1.0;
+  ctx.drawImage(ART.img, -r.w / 2, -r.h / 2, r.w, r.h);
+  
+  ctx.restore();
+}
+
+// Клик по картинке (и тач — он тоже шлёт синтетические mousedown/mouseup)
+let artDown = false;
+canvas.addEventListener('mousedown', e => {
+  artDown = artHit(e.clientX, e.clientY) && !cardAt(e.clientX, e.clientY);
+});
+canvas.addEventListener('mouseup', e => {
+  if (artDown && !dragging && artHit(e.clientX, e.clientY)) redirect(ART.url);
+  artDown = false;
+});
     // ── Main loop ─────────────────────────────────────────────────────────────────
 
     let lastT = 0;
@@ -1838,6 +1924,11 @@ function drawRadiartIcon(ctx, S) {
       drawHorizonGlow();
       drawGrid(t);
       drawCodeFragments(dt);
+      drawCodeFragments(dt);
+      drawArt();          // ← новая строка
+      drawGrain();
+      drawSlot(t);
+      drawCards();
       drawGrain();
       drawSlot(t);
       drawCards();
@@ -1849,14 +1940,11 @@ function drawRadiartIcon(ctx, S) {
     // ── Cursor (mouse) ────────────────────────────────────────────────────────────
 
     canvas.addEventListener('mousemove', e => {
-      if (dragging) { canvas.style.cursor = previewCard ? 'cell' : 'grabbing'; return; }
-      const cw = CARD_W(), ch = CARD_H();
-      const over = cards.some(c => {
-        if (c.snapped) return false;
-        return Math.hypot(e.clientX - c.body.position.x, e.clientY - c.body.position.y) < Math.max(cw, ch) * 0.68;
-      });
-      canvas.style.cursor = over ? 'grab' : 'default';
-    });
+  ptr.x = e.clientX; ptr.y = e.clientY;
+  if (dragging) { canvas.style.cursor = previewCard ? 'cell' : 'grabbing'; return; }
+  canvas.style.cursor = cardAt(e.clientX, e.clientY) ? 'grab'
+                      : artHit(e.clientX, e.clientY) ? 'pointer' : 'default';
+});
     canvas.addEventListener('mousedown', () => { if (dragging) canvas.style.cursor = 'grabbing'; });
     canvas.addEventListener('mouseup', () => { canvas.style.cursor = 'default'; });
     canvas.addEventListener('contextmenu', e => e.preventDefault());
